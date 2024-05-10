@@ -2,7 +2,12 @@
 #include <string>
 #include <algorithm>
 #include <iostream>
-#include <boost/bind.hpp>
+
+// #define BOOST_BIND_GLOBAL_PLACEHOLDERS
+
+#include <boost/bind/bind.hpp>
+
+
 
 using namespace std;
 using namespace boost;
@@ -225,99 +230,99 @@ void TimeoutSerial::readCompleted(const boost::system::error_code& error,
 // #include <iostream>
 
 
-// #ifdef _WIN32
+#ifdef _WIN32
 
-// #include <windows.h>
+#include <windows.h>
 
-// serialPort::serialPort(std::string portName)
-//     : serialPort(portName, CBR_38400, 8, NOPARITY, ONESTOPBIT) {}
+serialPort::serialPort(std::string portName)
+    : serialPort(portName, CBR_38400, 8, NOPARITY, ONESTOPBIT) {}
 
-// serialPort::serialPort(std::string portName, int baudRate, int byteSize,
-//                        int parity, int stopBits)
-//     : _portName(portName),
-//       _baudRate(baudRate),
-//       _byteSize(byteSize),
-//       _parity(parity),
-//       _stopBits(stopBits) {
-//   _portName = "\\\\.\\" + _portName;
+serialPort::serialPort(std::string portName, int baudRate, int byteSize,
+                       int parity, int stopBits)
+    : _portName(portName),
+      _baudRate(baudRate),
+      _byteSize(byteSize),
+      _parity(parity),
+      _stopBits(stopBits) {
+  _portName = "\\\\.\\" + _portName;
 
-//   __handle = CreateFileA(_portName.c_str(), GENERIC_READ | GENERIC_WRITE,
-//                          0,     //  must be opened with exclusive-access
-//                          NULL,  //  default security attributes
-//                          OPEN_EXISTING,         //  must use OPEN_EXISTING
-//                          FILE_FLAG_OVERLAPPED,  //  not overlapped I/O
-//                          NULL);  //  hTemplate must be NULL for comm devices
+  __handle = CreateFileA(_portName.c_str(), GENERIC_READ | GENERIC_WRITE,
+                         0,     //  must be opened with exclusive-access
+                         NULL,  //  default security attributes
+                         OPEN_EXISTING,         //  must use OPEN_EXISTING
+                         FILE_FLAG_OVERLAPPED,  //  not overlapped I/O
+                         NULL);  //  hTemplate must be NULL for comm devices
 
-//   if (__handle == INVALID_HANDLE_VALUE) throw serialExcept("Error opening");
+  if (__handle == INVALID_HANDLE_VALUE) throw serialExcept("Error opening");
 
-//   DCB dcb = {0};
-//   dcb.DCBlength = sizeof(DCB);
+  DCB dcb = {0};
+  dcb.DCBlength = sizeof(DCB);
 
-//   if (!GetCommState(__handle, &dcb)) throw serialExcept("Error get setting");
+  if (!GetCommState(__handle, &dcb)) throw serialExcept("Error get setting");
 
-//   dcb.fBinary = TRUE;
-//   dcb.fAbortOnError = FALSE;
-//   dcb.fNull = FALSE;
-//   dcb.fErrorChar = FALSE;
+  dcb.fBinary = TRUE;
+  dcb.fAbortOnError = FALSE;
+  dcb.fNull = FALSE;
+  dcb.fErrorChar = FALSE;
 
-//   if (dcb.fDtrControl == DTR_CONTROL_HANDSHAKE)
-//     dcb.fDtrControl = DTR_CONTROL_DISABLE;
-//   if (dcb.fRtsControl == RTS_CONTROL_HANDSHAKE)
-//     dcb.fRtsControl = RTS_CONTROL_DISABLE;
+  if (dcb.fDtrControl == DTR_CONTROL_HANDSHAKE)
+    dcb.fDtrControl = DTR_CONTROL_DISABLE;
+  if (dcb.fRtsControl == RTS_CONTROL_HANDSHAKE)
+    dcb.fRtsControl = RTS_CONTROL_DISABLE;
 
-//   dcb.BaudRate = _baudRate;
-//   dcb.ByteSize = _byteSize;
-//   dcb.Parity = _parity;
-//   dcb.fParity = false;
+  dcb.BaudRate = _baudRate;
+  dcb.ByteSize = _byteSize;
+  dcb.Parity = _parity;
+  dcb.fParity = false;
 
-//   dcb.StopBits = _stopBits;
+  dcb.StopBits = _stopBits;
 
-//   dcb.fOutX = false;
-//   dcb.fInX = false;
-//   dcb.fOutxCtsFlow = false;
+  dcb.fOutX = false;
+  dcb.fInX = false;
+  dcb.fOutxCtsFlow = false;
 
-//   if (!SetCommState(__handle, &dcb)) throw serialExcept("Error set setting");
+  if (!SetCommState(__handle, &dcb)) throw serialExcept("Error set setting");
 
-//   COMMTIMEOUTS timeout = {0};
-//   // if (!GetCommTimeouts(__handle, &timeout))
-//   //   throw serialExcept("Error get timeout");
+  COMMTIMEOUTS timeout = {0};
+  // if (!GetCommTimeouts(__handle, &timeout))
+  //   throw serialExcept("Error get timeout");
 
-//   timeout.ReadIntervalTimeout = 50;
-//   timeout.ReadTotalTimeoutConstant = 50;
-//   timeout.ReadTotalTimeoutMultiplier = 10;
-//   timeout.WriteTotalTimeoutConstant = 50;
-//   timeout.WriteTotalTimeoutMultiplier = 10;
+  timeout.ReadIntervalTimeout = 50;
+  timeout.ReadTotalTimeoutConstant = 50;
+  timeout.ReadTotalTimeoutMultiplier = 10;
+  timeout.WriteTotalTimeoutConstant = 50;
+  timeout.WriteTotalTimeoutMultiplier = 10;
 
-//   if (!GetCommTimeouts(__handle, &timeout))
-//     throw serialExcept("Error get timeout");
+  if (!GetCommTimeouts(__handle, &timeout))
+    throw serialExcept("Error get timeout");
 
-//   EscapeCommFunction(__handle, CLRDTR);  // qt setDataTerminalReady
-//   EscapeCommFunction(__handle, CLRRTS);  // qt setRequestToSend
+  EscapeCommFunction(__handle, CLRDTR);  // qt setDataTerminalReady
+  EscapeCommFunction(__handle, CLRRTS);  // qt setRequestToSend
 
-//   DWORD flags = PURGE_RXABORT | PURGE_RXCLEAR | PURGE_TXABORT | PURGE_TXCLEAR;  // qt clear
-//   PurgeComm(__handle, flags);
-// }
+  DWORD flags = PURGE_RXABORT | PURGE_RXCLEAR | PURGE_TXABORT | PURGE_TXCLEAR;  // qt clear
+  PurgeComm(__handle, flags);
+}
 
-// serialPort::~serialPort() { CloseHandle(__handle); }
+serialPort::~serialPort() { CloseHandle(__handle); }
 
-// bool serialPort::writeString(std::string str) {
-//   //   bool success = false;
-//   DWORD byteSend;
-//   if (!WriteFile(__handle, str.c_str(), str.size(), &byteSend, 0)) return false;
-//   return true;
-// }
+bool serialPort::writeString(std::string str) {
+  //   bool success = false;
+  DWORD byteSend;
+  if (!WriteFile(__handle, str.c_str(), str.size(), &byteSend, 0)) return false;
+  return true;
+}
 
-// std::string serialPort::readString() {
-//   std::string str("");
-//   // DWORD error;
-//   // COMSTAT status;
-//   DWORD bytesIn;
-//   // ClearCommError(__handle, &error, &status);
-//   // str.resize(status.cbInQue);
-//   str.resize(10);
-//   ReadFile(__handle, &str[0], 10, &bytesIn, NULL);//status.cbInQue
+std::string serialPort::readString() {
+  std::string str("");
+  // DWORD error;
+  // COMSTAT status;
+  DWORD bytesIn;
+  // ClearCommError(__handle, &error, &status);
+  // str.resize(status.cbInQue);
+  str.resize(10);
+  ReadFile(__handle, &str[0], 10, &bytesIn, NULL);//status.cbInQue
   
-//   return str;
-// }
+  return str;
+}
 
-// #endif  //_WIN32
+#endif  //_WIN32

@@ -276,7 +276,7 @@ void ASADecode::putMatrix(uint8_t mt_type, uint8_t mt_numy, uint8_t mt_numx) {
   this->mt_type = mt_type;
   this->mt_numy = mt_numy;
   this->mt_numx = mt_numx;
-  mt_dlen = mt_numy * mt_numx * typeSize[ar_type];
+  mt_dlen = mt_numy * mt_numx * typeSize[mt_type];
   mt_dat.resize(mt_dlen);
 }
 

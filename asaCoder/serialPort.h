@@ -1,3 +1,5 @@
+#ifndef SERIALPORT_H
+#define SERIALPORT_H
 #include <boost/asio.hpp>
 #include <boost/utility.hpp>
 #include <stdexcept>
@@ -209,26 +211,29 @@ class TimeoutSerial : private boost::noncopyable {
   ReadSetupParameters setupParameters;  ///< Global because used in the OSX fix
 };
 
+class serialPort {
+ protected:
+  void* __handle;
+
+ private:
+  std::string _portName;
+  int _baudRate;
+  int _byteSize;
+  int _parity;
+  int _stopBits;
+
+ public:
+  // serialPort();
+  serialPort(std::string portName);
+  serialPort(std::string portName, int baudRate, int byteSize, int parity,
+             int stopBits);
+
+  ~serialPort();
+  bool writeString(std::string str);
+  std::string readString();
+};
+#endif //SERIALPORT_H
+
 // #include <string>
 
-// class serialPort {
-//  protected:
-//   void* __handle;
 
-//  private:
-//   std::string _portName;
-//   int _baudRate;
-//   int _byteSize;
-//   int _parity;
-//   int _stopBits;
-
-//  public:
-//   // serialPort();
-//   serialPort(std::string portName);
-//   serialPort(std::string portName, int baudRate, int byteSize, int parity,
-//              int stopBits);
-
-//   ~serialPort();
-//   bool writeString(std::string str);
-//   std::string readString();
-// };

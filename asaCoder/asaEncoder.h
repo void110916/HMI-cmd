@@ -96,6 +96,10 @@ struct HMI_format {
   HMI_format(PAC_type type, ssub_match format) : type(type), format(format) {}
 };
 
+/**
+ * @brief from serial port to PC
+ * 
+ */
 class ASADecode {
  private:
   // member
@@ -172,6 +176,10 @@ class ASADecode {
 }
 };
 
+/**
+ * @brief from PC to serial port
+ * 
+ */
 class ASAEncode {
   struct SplitStr{
     string str;
@@ -218,7 +226,6 @@ class ASAEncode {
 
   vector<uint8_t> encodeAr2Pac();
   vector<uint8_t> encodeMt2Pac();
-
   vector<uint8_t> encodeSt2Pac();
 
  public:
@@ -234,6 +241,8 @@ class ASAEncode {
   bool put(string text);
   vector<uint8_t> get();
   void clear();
+
+  
 };
 
 }  // namespace ASAEncoder
