@@ -2,24 +2,42 @@ cmake_minimum_required(VERSION 3.24)
 
 project(HMI-cmd LANGUAGES CXX)
 
+include(CMakePrintHelpers)
+
+cmake_print_variables(CMAKE_SYSTEM_NAME) # 操作系統
+cmake_print_variables(CMAKE_SYSTEM_VERSION) # 操作系統版本
+cmake_print_variables(CMAKE_CXX_COMPILER_ID) # 編譯器
+cmake_print_variables(CMAKE_CXX_COMPILER_VERSION) # 編譯器版本
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS ON)
 
 set(BOOST_ROOT "${CMAKE_SOURCE_DIR}/boost_1_85_0/stage/lib/cmake")
 # set(Boost_LIBRARY_DIRS boost_1_85_0)
-set(Boost_USE_STATIC_LIBS ON)
+option(Boost_USE_STATIC_LIBS "" ON)
+option(Boost_USE_STATIC_RUNTIME "" ON)
+# option(USE_CXX_STD_20 "" OFF)
 set(Boost_ARCHITECTURE "-x64")
 find_package(Boost COMPONENTS date_time system REQUIRED)
 include_directories(${Boost_INCLUDE_DIRS})
+cmake_print_variables(${Boost_LIBRARIES})
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_package(Threads REQUIRED)
 
 include_directories(asaCoder)
-
+include_directories(cmd)
+add_subdirectory(cmd)
 add_library(asaCoder 
     asaCoder/asaEncoder.cpp
     asaCoder/serialPort.cpp
+    cmd/HMI.cpp
     )
-if(MINGW)
-    target_link_libraries(asaCoder ws2_32)
+
+# target_link_libraries(asaCoder Boost::asio)
+target_link_libraries(asaCoder Threads::Threads)
+if(WIN32)
+    target_link_libraries(asaCoder wsock32 ws2_32)
 endif()
 # target_link_libraries(asaCoder 
 #     advapi32
