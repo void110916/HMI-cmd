@@ -14,20 +14,26 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
 
 set(BOOST_ROOT "${CMAKE_SOURCE_DIR}/boost_1_85_0/stage/lib/cmake")
-# set(Boost_LIBRARY_DIRS boost_1_85_0)
+set(Boost_LIBRARY_DIRS boost_1_85_0)
 option(Boost_USE_STATIC_LIBS "" ON)
+option(Boost_USE_MULTITHREADED "" ON)
 option(Boost_USE_STATIC_RUNTIME "" ON)
-# option(USE_CXX_STD_20 "" OFF)
+option(USE_CXX_STD_20 "" ON)
 set(Boost_ARCHITECTURE "-x64")
-find_package(Boost COMPONENTS date_time system REQUIRED)
+find_package(Boost COMPONENTS date_time system program_options REQUIRED)
+cmake_print_variables(${Boost_INCLUDE_DIRS})
 include_directories(${Boost_INCLUDE_DIRS})
-cmake_print_variables(${Boost_LIBRARIES})
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
+
+# add_compile_definitions(_GLIBCXX_USE_CXX11_ABI=0)
 
 include_directories(asaCoder)
 include_directories(cmd)
 add_subdirectory(cmd)
+
+add_subdirectory(cxxopts-3.2.0)
+
 add_library(asaCoder 
     asaCoder/asaEncoder.cpp
     asaCoder/serialPort.cpp
