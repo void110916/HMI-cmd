@@ -2,3 +2,4 @@
 build
 boost*
 cxxopts*
+ncurses
