@@ -27,9 +27,10 @@ set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
 # add_compile_definitions(_GLIBCXX_USE_CXX11_ABI=0)
-
+# include_directories(ncurses/include)
+# link_directories(ncurses/lib)
 include_directories(asaCoder)
-include_directories(cmd)
+# include_directories(cmd)
 add_subdirectory(cmd)
 
 add_subdirectory(cxxopts-3.2.0)
@@ -37,8 +38,18 @@ add_subdirectory(cxxopts-3.2.0)
 add_library(asaCoder 
     asaCoder/asaEncoder.cpp
     asaCoder/serialPort.cpp
-    cmd/HMI.cpp
+    # cmd/HMI.cpp
     )
+
+# include_directories(${CMAKE_SOURCE_DIR}/ncurses/include)
+# link_directories(${CMAKE_SOURCE_DIR}/ncurses/lib)
+# add_definitions(-DNCURSES_STATIC)
+# add_compile_options("-fno-stack-protector")
+
+# add_executable(PCDataAgent cmd/cmdAgent.cpp)
+# target_link_libraries(PCDataAgent ncursesw -static)
+# target_include_directories(PCDataAgent INTERFACE ${CMAKE_SOURCE_DIR}/ncurses/include)
+# target_link_directories(PCDataAgent INTERFACE ${CMAKE_SOURCE_DIR}/ncurses/lib)
 
 # target_link_libraries(asaCoder Boost::asio)
 target_link_libraries(asaCoder Threads::Threads)
