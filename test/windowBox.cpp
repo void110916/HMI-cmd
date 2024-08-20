@@ -1,5 +1,6 @@
 #define NCURSES_NOMACROS
 #include <ncursesw/ncurses.h>
+#include <boost/algorithm/string.hpp>
 #include <unistd.h>
 
 #include <string>
@@ -53,8 +54,11 @@ int main() {
         }
         case '\n':  // enter, KEY_ENTER not working
         {
-          // lstr.push_back('\n');
-          wprintw(twin, "%s\n", lstr.c_str());
+          string str(COLS-2,0);
+          mvwinnstr(bwin,1,1,str.data(),COLS-2);
+          boost::trim_right(str);
+
+          wprintw(twin, "%s\n", str.c_str());
           box(twin, 0, 0);
           wrefresh(twin);
           wclear(bwin);
@@ -129,7 +133,6 @@ int main() {
           }
           case KEY_F(1):
           {
-            
           }
         default:
           //   waddch();
