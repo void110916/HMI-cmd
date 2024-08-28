@@ -12,34 +12,50 @@ int main() {
   box(wl, 0, 0);
   wmove(w,1,1);
 
-  wprintw(w,"test 11111 !\n");
+  wprintw(w,"test 11221 !\nfscas");
   wrefresh(w);
   wrefresh(wl);
   usleep(3000000);
   bool i = true;
   while (1) {
     if (i) {
-        wclear(wl);
+      // way 1 =====================
+      // wclear(wl);
+      // wresize(w, LINES, COLS);
+      // wclear(w);
+      // ===========================
+      // way 2 =====================
+      wclrtobot(w);
       wresize(w, LINES, COLS);
-      
-      wclear(w);
+      // ===========================
       box(w, 0, 0);
-      overwrite(w,wl);
+      // overwrite(w,wl);
+      touchwin(w);
       wnoutrefresh(w);
+      touchwin(wl);
       wnoutrefresh(wl);
+      touchwin(w);
+      wnoutrefresh(w);
     } else {
-      wclear(wl);   // clear old things from background
+      // way 1 =====================
+      /// wclear(wl);   // clear old things from background
+      /// wresize(w, LINES-3, COLS);
+      /// wclear(w);
+      // ===========================
+      // way 2 =====================
       wresize(w, LINES-3, COLS);
-      wclear(w);
-      
+      touchwin(w);
+      touchwin(wl);
+      // ===========================
       box(w, 0, 0);
       box(wl, 0, 0);
+
     //   wrefresh(stdscr);
       wnoutrefresh(w);
       wnoutrefresh(wl);
     }
     // touchwin(wl);
-    wnoutrefresh(wl);
+    // wnoutrefresh(wl);
     doupdate();
     i = !i;
     usleep(800000);
