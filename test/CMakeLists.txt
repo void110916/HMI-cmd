@@ -31,3 +31,8 @@ target_link_libraries(serial2win asaCoder)
 target_link_libraries(serial2win ncursesw -static)
 target_include_directories(serial2win PUBLIC ${CMAKE_SOURCE_DIR}/ncurses/include)
 target_link_directories(serial2win PUBLIC ${CMAKE_SOURCE_DIR}/ncurses/lib)
+
+add_executable(resizeWin resizeWin.cpp)
+target_link_libraries(resizeWin ncursesw -static)
+target_include_directories(resizeWin PUBLIC ${CMAKE_SOURCE_DIR}/ncurses/include)
+target_link_directories(resizeWin PUBLIC ${CMAKE_SOURCE_DIR}/ncurses/lib)

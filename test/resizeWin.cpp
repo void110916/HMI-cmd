@@ -1,35 +1,48 @@
 #define NCURSES_NOMACROS
 #include <ncursesw/ncurses.h>
 #include <unistd.h>
+#include <string>
+
 int main() {
   initscr();
-  WINDOW *w = newwin(5, 10, 2, 2);
-  WINDOW *wl = newwin(5, 10, 2, 20);
+  WINDOW *w = newwin(LINES-3, COLS, 0, 0);
+  WINDOW *wl = newwin(3, COLS, LINES-3, 0);
   box(w, 0, 0);
-  wrefresh(w);
+  
   box(wl, 0, 0);
+  wmove(w,1,1);
+
+  wprintw(w,"test 11111 !\n");
+  wrefresh(w);
   wrefresh(wl);
+  usleep(3000000);
   bool i = true;
   while (1) {
     if (i) {
-      wresize(w, 10, 15);
+        wclear(wl);
+      wresize(w, LINES, COLS);
+      
       wclear(w);
       box(w, 0, 0);
-      wrefresh(w);
+      overwrite(w,wl);
+      wnoutrefresh(w);
+      wnoutrefresh(wl);
     } else {
-      wclear(stdscr);   // clear old things from background
-      wresize(w, 5, 10);
+      wclear(wl);   // clear old things from background
+      wresize(w, LINES-3, COLS);
       wclear(w);
       
       box(w, 0, 0);
-      wrefresh(stdscr);
-      wrefresh(w);
+      box(wl, 0, 0);
+    //   wrefresh(stdscr);
+      wnoutrefresh(w);
+      wnoutrefresh(wl);
     }
-    touchwin(wl);
+    // touchwin(wl);
     wnoutrefresh(wl);
     doupdate();
     i = !i;
-    usleep(500000);
+    usleep(800000);
   }
 }
 
