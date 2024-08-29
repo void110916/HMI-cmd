@@ -29,11 +29,6 @@ int main() {
       wresize(w, LINES, COLS);
       // ===========================
       box(w, 0, 0);
-      // overwrite(w,wl);
-      touchwin(w);
-      wnoutrefresh(w);
-      touchwin(wl);
-      wnoutrefresh(wl);
       touchwin(w);
       wnoutrefresh(w);
     } else {
