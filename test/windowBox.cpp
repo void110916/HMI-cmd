@@ -1,23 +1,31 @@
 #define NCURSES_NOMACROS
 #include <ncursesw/ncurses.h>
+#include <boost/algorithm/string.hpp>
 #include <unistd.h>
 
 #include <string>
 WINDOW *twin, *bwin;
 #define SCORE_SIZE 3
-#define ISCTRL(ch) (ch & 0x1f)
+#define ISCTRL(ch) ((ch) & 0x1f)
 using namespace std;
 int main() {
   // init global window
   initscr();
   // ======================
   //   set keyboard property
-  curs_set(1);
-  keypad(stdscr, true);
-  raw();  // disable signal (ex. ctrl+c)
+  keypad(stdscr, TRUE);
+  // cbreak();
   noecho();
+  // nonl();  // no new line when press 'enter'
+
+  curs_set(1);
+  // cbreak();
+  raw();  // disable signal (ex. ctrl+c)
+
   nodelay(stdscr, true);
-  intrflush(stdscr, true);
+
+  refresh();
+  // intrflush(stdscr, true);
   // ======================
 
   twin = newwin(LINES - SCORE_SIZE, COLS, 0, 0);
@@ -28,14 +36,14 @@ int main() {
 
   box(bwin, 0, 0);
   wmove(bwin, 1, 1);
-  
-    refresh();
+
+  // keypad(bwin, TRUE);
   wrefresh(twin);
   wrefresh(bwin);
-    
   string lstr;
   while (1) {
-    int ch = wgetch(bwin);
+    int ch = getch();  // use getch will reset cursor to (1,1)
+    int s = '\r';
     if (ch != ERR) {
       switch (ch) {
         case ISCTRL('o'):  // ESC
@@ -44,10 +52,13 @@ int main() {
           return 0;
           break;
         }
-        case KEY_ENTER:  // enter
+        case '\n':  // enter, KEY_ENTER not working
         {
-          // lstr.push_back('\n');
-          wprintw(twin, " %s\n", lstr.c_str());
+          string str(COLS-2,0);
+          mvwinnstr(bwin,1,1,str.data(),COLS-2);
+          boost::trim_right(str);
+
+          wprintw(twin, "%s\n", str.c_str());
           box(twin, 0, 0);
           wrefresh(twin);
           wclear(bwin);
@@ -81,20 +92,62 @@ int main() {
           lstr.pop_back();
           break;
         }
+        case KEY_LEFT: {
+          int x, y;
+          getyx(bwin, y, x);
+          if (x == 1) {
+            if (y > 1) {
+              wmove(bwin, y - 1, x);
+              wrefresh(bwin);
+            }
+            break;
+          }
+          wmove(bwin, y, x - 1);
+          wrefresh(bwin);
+          break;
+        }
+        case KEY_RIGHT: {
+          int h = 0;
+          break;
+        }
+        case KEY_DOWN:
+          //   focus->keyDown();
+          //   focus->wrefresh();
+          {
+            int h = 0;
+            break;
+          }
+        case KEY_UP:
+          //   focus->keyUp();
+          //   focus->wrefresh();
+          {
+            int h = 0;
+            break;
+          }
+          case KEY_DC:
+          //   focus->keyUp();
+          //   focus->wrefresh();
+          {
+            int h = 0;
+            break;
+          }
+          case KEY_F(1):
+          {
+          }
         default:
           //   waddch();
           char c = ch & 0xff;
           waddnstr(bwin, &c, 1);
-          //   wprintw(bwin, &ch);
+          // //   wprintw(bwin, &ch);
           wrefresh(bwin);
           lstr.push_back(ch);
           //   str[pCur++] = ch;
 
           break;
-      }      
+      }
     }
-    wrefresh(twin);
-    wrefresh(bwin);
+    // wrefresh(twin);
+    // wrefresh(bwin);
     // refresh(); // this will reset cursor to (1,1)
     usleep(100);
   }
