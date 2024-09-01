@@ -5,7 +5,7 @@ target_link_libraries(hello HMI)
 target_link_libraries(hello wsock32 ws2_32)
 
 add_executable(getHello getHello.cpp)
-target_link_libraries(getHello HMI)
+# target_link_libraries(getHello HMI)
 target_link_libraries(getHello wsock32 ws2_32)
 
 add_executable(putArray putArray.cpp)

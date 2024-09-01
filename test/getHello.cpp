@@ -1,13 +1,13 @@
 #include <iostream>
 
-// #include "asaEncoder.h"
-#include "Serial.h"
+#include "asaEncoder.h"
+#include "serialPort.h"
 
 using namespace std;
 
 int main() {
   std::cerr << "start\n" <<std::flush;
-  serial::Serial com;
+  SerialPort com;
   try
   {
     com.open("COM4", 38400);
@@ -26,7 +26,7 @@ int main() {
   // //   return 1;
   // // }
   while (1) {
-    auto str = com.receiveAsync(256,5).get();
+    auto str = com.readAsync(256,5).get();
     // auto str=future.get();
     if (!str.empty()) {
       std::cout << str.data() << std::flush;
