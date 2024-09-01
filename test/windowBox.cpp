@@ -1,8 +1,8 @@
 #define NCURSES_NOMACROS
 #include <ncursesw/ncurses.h>
-#include <boost/algorithm/string.hpp>
 #include <unistd.h>
 
+#include <boost/algorithm/string.hpp>
 #include <string>
 WINDOW *twin, *bwin;
 #define SCORE_SIZE 3
@@ -22,27 +22,41 @@ int main() {
   // cbreak();
   raw();  // disable signal (ex. ctrl+c)
 
-  nodelay(stdscr, true);
+  nodelay(stdscr, true);  // stdscr use with getch, win use with wgetch
 
   refresh();
   // intrflush(stdscr, true);
   // ======================
-
-  twin = newwin(LINES - SCORE_SIZE, COLS, 0, 0);
-  bwin = newwin(SCORE_SIZE, COLS, LINES - SCORE_SIZE, 0);
-
-  box(twin, 0, 0);
-  wmove(twin, 1, 1);
-
-  box(bwin, 0, 0);
-  wmove(bwin, 1, 1);
+  WINDOW *tb = newwin(LINES - SCORE_SIZE, COLS, 0, 0);
+  WINDOW *bb = newwin(SCORE_SIZE, COLS, LINES - SCORE_SIZE, 0);
+  box(tb, 0, 0);
+  box(bb, 0, 0);
+  mvwprintw(tb,0,1," term ");
+  wrefresh(tb);
+  wrefresh(bb);
+  // touchwin(stdscr);
+  // refresh();
+  twin = derwin(tb, LINES - SCORE_SIZE - 2, COLS - 2, 1, 1);
+  bwin = derwin(tb, SCORE_SIZE-2, COLS - 2,  1, 1);
+  
+  
+  scrollok(twin, true);
+  wsetscrreg(twin, 2, LINES - SCORE_SIZE - 3);
+  wmove(bwin, 0, 0);
 
   // keypad(bwin, TRUE);
   wrefresh(twin);
   wrefresh(bwin);
+
   string lstr;
+  bool isshort = true;
+  for (int i = 0; i < 300; i++) {
+    wprintw(twin, "%d..............................................",i);
+  }
+
+  wrefresh(twin);
   while (1) {
-    int ch = getch();  // use getch will reset cursor to (1,1)
+    int ch = wgetch(bwin);  // use getch will reset cursor to (1,1)
     int s = '\r';
     if (ch != ERR) {
       switch (ch) {
@@ -54,8 +68,8 @@ int main() {
         }
         case '\n':  // enter, KEY_ENTER not working
         {
-          string str(COLS-2,0);
-          mvwinnstr(bwin,1,1,str.data(),COLS-2);
+          string str(COLS - 2, 0);
+          mvwinnstr(bwin, 1, 1, str.data(), COLS - 2);
           boost::trim_right(str);
 
           wprintw(twin, "%s\n", str.c_str());
@@ -110,34 +124,38 @@ int main() {
           int h = 0;
           break;
         }
-        case KEY_DOWN:
-          //   focus->keyDown();
-          //   focus->wrefresh();
-          {
-            int h = 0;
-            break;
+        case KEY_DOWN: {
+          int h = 0;
+          break;
+        }
+        case KEY_UP: {
+          int h = 0;
+          break;
+        }
+        case KEY_DC: {
+          int h = 0;
+          break;
+        }
+        case ISCTRL('c'): {
+          if (isshort) {
+            wresize(tb, LINES - SCORE_SIZE - 2, COLS);
+            wclear(tb);
+            // wresize(twin, LINES - SCORE_SIZE - 2 - 2, COLS - 2);
+          } else {
+            wresize(tb, LINES - SCORE_SIZE, COLS);
+            // wresize(twin, LINES - SCORE_SIZE - 2, COLS - 2);
           }
-        case KEY_UP:
-          //   focus->keyUp();
-          //   focus->wrefresh();
-          {
-            int h = 0;
-            break;
-          }
-          case KEY_DC:
-          //   focus->keyUp();
-          //   focus->wrefresh();
-          {
-            int h = 0;
-            break;
-          }
-          case KEY_F(1):
-          {
-          }
+          // touchwin(stdscr);
+          wrefresh(tb);
+          refresh();
+          // wrefresh(twin);
+          isshort != isshort;
+          break;
+        }
         default:
           //   waddch();
           char c = ch & 0xff;
-          waddnstr(bwin, &c, 1);
+          waddch(bwin, c);
           // //   wprintw(bwin, &ch);
           wrefresh(bwin);
           lstr.push_back(ch);
