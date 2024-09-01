@@ -2,10 +2,14 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <thread>
+#include <chrono>
 #include "asaEncoder.h"
 #include "serialPort.h"
 // #include "HMI.h"
 #include "window.h"
+
+#include "edit.h"
 
 using namespace std;
 // #define SCORE_SIZE 3
@@ -16,7 +20,8 @@ void change_win();
 
 Window ltwin, lbwin, rtwin, rbwin, *focus;
 
-BufferedAsyncSerial serial;
+// BufferedAsyncSerial serial;
+SerialPort serial;
 
 int main(int argc, char *argv[]) {
   cxxopts::Options opt("info");
@@ -59,7 +64,7 @@ int main(int argc, char *argv[]) {
   initscr();
   // ======================
   //   set keyboard property
-  curs_set(0);
+  curs_set(1);
   keypad(stdscr,TRUE);
   raw();  // disable signal (ex. ctrl+c)
   noecho();
@@ -91,42 +96,62 @@ int main(int argc, char *argv[]) {
 
   // refresh();
 
-  ltwin = Window(LINES - SCORE_SIZE, COLS / 2, 0, 0," port terminal ");
-  lbwin = Window(SCORE_SIZE, COLS / 2, LINES - SCORE_SIZE, 0);
-  rtwin = Window(LINES, COLS / 2, 0, COLS / 2," workspace ");
-  // rbwin = Window(LINES - SCORE_SIZE, COLS / 2, 0, COLS / 2);
+  // WINDOW *ltbox=subwin(stdscr,LINES- SCORE_SIZE,COLS/2,0,0);
+  // WINDOW *lbbox=subwin(stdscr,SCORE_SIZE,COLS/2,LINES- SCORE_SIZE,0);
+  // // touchwin(stdscr);
+  // // refresh();
+  // WINDOW *rtbox=subwin(stdscr,LINES,COLS/2,0,COLS/2);
+  // box(ltbox,0,0);
+  // mvwprintw(ltbox, 0, 1, " port terminal ");
+  // box(lbbox,0,0);
+  // box(rtbox,0,0);
+  // mvwprintw(rtbox, 0, 1, " workspace ");
+  // touchwin(stdscr);
+  // refresh();
 
+  ltwin = Window(LINES - SCORE_SIZE, COLS / 2, 0, 0, " port terminal ",true);
+  rbwin = Window(SCORE_SIZE, COLS / 2, LINES - SCORE_SIZE, COLS / 2);
+  rtwin = Window(LINES, COLS / 2, 0, COLS / 2, " workspace ");
+  lbwin = Window(SCORE_SIZE, COLS / 2, LINES - SCORE_SIZE, 0);
   focus= &lbwin;
-  // Window::refresh();
+
+  ltwin.waitUpdate();
+  rtwin.waitUpdate();
+  lbwin.waitUpdate();
+  Window::update();
   // ======================
-  
 
   // string lstr, rstr;
   bool putSync=false;
   while (1) {
     // read serial
     string s;
-    auto chars = serial.read();
-    for (const char ch:chars)
-    {
-      static ASAEncoder::ASADecode decode;
-      if (!decode.put(ch)) {
-        if (ch != '\r') s+=ch;
-        if (decode.isSync(ch)) {
-          serial.writeString("~ACK\n");
-          s+="~ACK\n";
+    // focus->wrefresh();
+    auto chars = serial.readAsync(256,5).get();
+    if(!chars.empty()){
+      for (const char ch:chars){
+        static ASAEncoder::ASADecode decode;
+        if (!decode.put(ch)) {
+          if (ch == '\r') continue;
+          if (decode.isSync(ch)) {
+            serial.writeAsync("~ACK\n");
+            s+="~ACK\n";
+          }
+          putSync=ASAEncoder::ASAEncode::isSync(ch);
+          ltwin.addChar(ch);
         }
-        putSync=ASAEncoder::ASAEncode::isSync(ch);
+        if(decode.isDone){
+          // add struct object
+          // add struct object to window
+        }
       }
-      if(decode.isDone){
-        // add struct object
-        // add struct object to window
-      }
-    }
-    ltwin.addString(s);
+      // ltwin.touch();
+      ltwin.waitUpdate();
+      Window::update();
+    }    
     // ======================
     // verify key 
-    int key = getch();
+    int key = focus->getch();
     if (key != ERR) {
       switch (key) {
         case ISCTRL('o'):  // ESC
@@ -136,7 +161,7 @@ int main(int argc, char *argv[]) {
           return 0;
           break;
         }
-        case KEY_ENTER:  // enter //old: 10
+        case '\n':  // enter //old: 10
         {
           /// wprintw(ltwin," %s\n", lstr.c_str());
           /// box(ltwin, 0, 0);
@@ -147,11 +172,11 @@ int main(int argc, char *argv[]) {
           /// wrefresh(lbwin);
           /// lstr.clear();
 
-          // left event
+          // left event =============
           string str=lbwin.popString();
-          lbwin.wrefresh();
+          lbwin.waitUpdate();
           ltwin.addString(str);
-          ltwin.wrefresh();
+          ltwin.waitUpdate();
           // ====================
           break;
         }
@@ -167,31 +192,32 @@ int main(int argc, char *argv[]) {
           /// lstr.pop_back();
 
           focus->backChar();
-          focus->wrefresh();
+          focus->waitUpdate();
           break;
         }
         case KEY_DC: // delete
           focus->delChar();
-          focus->wrefresh();
+          focus->waitUpdate();
           break;
         case KEY_DOWN:
           focus->keyDown();
-          focus->wrefresh();
+          focus->waitUpdate();
           break;
         case KEY_UP:
           focus->keyUp();
-          focus->wrefresh();
+          focus->waitUpdate();
           break;
         case KEY_LEFT:
           focus->keyLeft();
-          focus->wrefresh();
+          focus->waitUpdate();
           break;
         case KEY_RIGHT:
           focus->keyRight();
-          focus->wrefresh();
+          focus->waitUpdate();
           break;
         case '\t':
           change_win();
+          break;
         default:
               //   waddch();
           /// waddnstr(lbwin, &ch,1);
@@ -201,14 +227,17 @@ int main(int argc, char *argv[]) {
               //   str[pCur++] = ch;
 
           // lbwin, rbwin event
-          string str;
-          str=key&0xff;
-          focus->addString(str);
-          focus->wrefresh();
+          char c;
+          c=key&0xff;
+          focus->addChar(c);
+          // focus->wrefresh();
+          focus->waitUpdate();
           break;
       }
-      // Window::refresh();
+      Window::update();
     }
+    
+    this_thread::sleep_for(chrono::milliseconds(100));
   }
 
   // pause the screen output
@@ -310,50 +339,7 @@ int cmd_decode(string str){
     return 0;
 }
 
-void change_win(){
-  static int index=0;
-  // number: lbwin:0, rtwin:1, rbwin:2
-  index++;
-  index&3;
-  if(index==0)
-  {
-    focus=&lbwin;
-    rtwin.resize(LINES-SCORE_SIZE, COLS / 2);
-    rtwin.wrefresh();
-  }
-  else if (index==1)
-  {
-    focus=&rtwin;
-  }
-  else
-  {
-    rtwin.resize(LINES-SCORE_SIZE, COLS / 2);
-    rtwin.wrefresh();
-    rbwin.wrefresh();
-  }
-  
 
-  /// if(show)
-  /// {
-  ///   rtwin = newwin(LINES-SCORE_SIZE, COLS / 2, 0, 0);
-  ///   box(rtwin, 0, 0);
-  ///   mvwprintw(rtwin, 0, 1, " workspace ");
-  ///   wrefresh(rtwin);
-
-  ///   rbwin = newwin(SCORE_SIZE, COLS / 2, LINES - SCORE_SIZE, 0);
-  ///   box(rbwin, 0, 0);
-  ///   wmove(rbwin, 1, 1);
-  /// }
-  /// else
-  /// {
-  ///   rtwin = newwin(LINES-SCORE_SIZE, COLS / 2, 0, 0);
-  ///   box(rtwin, 0, 0);
-  ///   mvwprintw(rtwin, 0, 1, " workspace ");
-  /// }
-  
-  /// wrefresh(rbwin);
-  // refresh();
-}
 
 
 
