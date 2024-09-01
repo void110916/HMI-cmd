@@ -15,7 +15,7 @@ using namespace boost;
 // #include <mutex>
 // #include <boost/bind.hpp>
 #include <boost/shared_array.hpp>
-
+// reference from: https://github.com/karthickai/serial
 using namespace std::placeholders;
 
 void SerialPort::open(const std::string& port_name, uint32_t baudrate) {
