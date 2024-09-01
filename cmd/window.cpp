@@ -85,7 +85,6 @@ std::string Window::popString() {
   auto string = str;
   str.clear();
   werase(w);
-  box(w, 0, 0);
   wmove(w, 1, 1);
   //   wrefresh();
   return string;
