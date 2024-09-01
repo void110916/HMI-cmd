@@ -3,3 +3,4 @@ build
 boost*
 cxxopts*
 ncurses
+cmd/edit*
