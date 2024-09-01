@@ -7,11 +7,11 @@ using namespace std;
 
 int main() {
   std::cerr << "start\n" <<std::flush;
-  TimeoutSerial com;
+  SerialPort com;
   try
   {
     com.open("COM4", 38400);
-    com.setTimeout(boost::posix_time::seconds(5));
+    // com.setTimeout(boost::posix_time::seconds(5));
   }
   catch(const std::exception& e)
   {
@@ -26,12 +26,15 @@ int main() {
   // //   return 1;
   // // }
   while (1) {
-    string str = com.readString(1);
+    auto str = com.readAsync(256,5).get();
+    // auto str=future.get();
     if (!str.empty()) {
-      std::cout << str << std::flush;
+      std::cout << str.data() << std::flush;
+      std::cout << "touch" << std::flush;
       // break;
     }
     // cout<<"c"<<endl;
+    std::cout << "touch" << std::flush;
   }
 
   return 0;
