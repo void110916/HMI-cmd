@@ -1,12 +1,12 @@
+#include <chrono>
 #include <cxxopts.hpp>
 #include <iostream>
 #include <string>
-#include <vector>
 #include <thread>
-#include <chrono>
+#include <vector>
+
 #include "asaEncoder.h"
 #include "serialPort.h"
-
 #include "window.h"
 
 // #include "edit.h"
@@ -26,10 +26,10 @@ SerialPort serial;
 int main(int argc, char *argv[]) {
   cxxopts::Options opt("info");
 
-  opt.add_options()("h,help", "Help info")
-  ("p,port", "serial port",cxxopts::value<string>(), "NAME")
-  ("b,baud", "serial port baud rate",
-    cxxopts::value<int>()->default_value("38400"),"NUM");
+  opt.add_options()("h,help", "Help info")("p,port", "serial port",
+                                           cxxopts::value<string>(), "NAME")(
+      "b,baud", "serial port baud rate",
+      cxxopts::value<int>()->default_value("38400"), "NUM");
   // ("t,time", "serial port timeout (s)",
   //   cxxopts::value<int>()->default_value("0"),"NUM");
 
@@ -53,10 +53,10 @@ int main(int argc, char *argv[]) {
   }
   // =======================
   // open serial with args
-  serial.open(comStr,baud);
+  serial.open(comStr, baud);
   // serial.setTimeout(time);
-  if(!serial.isOpen()){
-    cout<< "serial \""<<"comStr"<<"\" open fail"<<endl;
+  if (!serial.isOpen()) {
+    cout << "serial \"" << "comStr" << "\" open fail" << endl;
     exit(1);
   }
   // ======================
@@ -65,7 +65,7 @@ int main(int argc, char *argv[]) {
   // ======================
   //   set keyboard property
   curs_set(1);
-  keypad(stdscr,TRUE);
+  keypad(stdscr, TRUE);
   raw();  // disable signal (ex. ctrl+c)
   noecho();
   nodelay(stdscr, true);
@@ -109,11 +109,12 @@ int main(int argc, char *argv[]) {
   // touchwin(stdscr);
   // refresh();
 
-  ltwin = Window(LINES - SCORE_SIZE, COLS / 2, 0, 0, " port terminal ",true);
+  ltwin =
+      Window(LINES - SCORE_SIZE, COLS / 2, 0, 0, " port terminal ", true);
+  lbwin = Window(SCORE_SIZE, COLS / 2, LINES - SCORE_SIZE, 0);
   rbwin = Window(SCORE_SIZE, COLS / 2, LINES - SCORE_SIZE, COLS / 2);
   rtwin = Window(LINES, COLS / 2, 0, COLS / 2, " workspace ");
-  lbwin = Window(SCORE_SIZE, COLS / 2, LINES - SCORE_SIZE, 0);
-  focus= &lbwin;
+  focus = &lbwin;
 
   ltwin.waitUpdate();
   rtwin.waitUpdate();
@@ -122,25 +123,25 @@ int main(int argc, char *argv[]) {
   // ======================
 
   // string lstr, rstr;
-  bool putSync=false;
+  bool putSync = false;
   while (1) {
     // read serial
     string s;
     // focus->wrefresh();
-    auto chars = serial.readAsync(256,5).get();
-    if(!chars.empty()){
-      for (const char ch:chars){
+    auto chars = serial.readAsync(256, 5).get();
+    if (!chars.empty()) {
+      for (const char ch : chars) {
         static ASAEncoder::ASADecode decode;
         if (!decode.put(ch)) {
           if (ch == '\r') continue;
+          ltwin.addChar(ch);
           if (decode.isSync(ch)) {
             serial.writeAsync("~ACK\n");
-            s+="~ACK\n";
+            ltwin.addString("~ACK");
           }
-          putSync=ASAEncoder::ASAEncode::isSync(ch);
-          ltwin.addChar(ch);
+          putSync = ASAEncoder::ASAEncode::isSync(ch);
         }
-        if(decode.isDone){
+        if (decode.isDone) {
           // add struct object
           // add struct object to window
         }
@@ -148,16 +149,16 @@ int main(int argc, char *argv[]) {
       // ltwin.touch();
       ltwin.waitUpdate();
       Window::update();
-    }    
+    }
     // ======================
-    // verify key 
+    // verify key
     int key = focus->getch();
     if (key != ERR) {
       switch (key) {
         case ISCTRL('o'):  // ESC
         {
           endwin();
-          if(serial.isOpen()) serial.close();
+          if (serial.isOpen()) serial.close();
           return 0;
           break;
         }
@@ -173,11 +174,19 @@ int main(int argc, char *argv[]) {
           /// lstr.clear();
 
           // left event =============
-          string str=lbwin.popString();
-          lbwin.waitUpdate();
-          ltwin.addString(str);
-          ltwin.waitUpdate();
+          if (focus == &lbwin) {
+            string str = lbwin.popString();
+
+            ltwin.addString(str);
+            ltwin.waitUpdate();
+            lbwin.waitUpdate();
+          }
           // ====================
+          // right top event========
+          else if (focus == &rtwin) {
+            focus->addChar('\n');
+            focus->waitUpdate();
+          }
           break;
         }
         case KEY_BACKSPACE:  // backspace
@@ -219,25 +228,18 @@ int main(int argc, char *argv[]) {
           change_win();
           break;
         default:
-              //   waddch();
-          /// waddnstr(lbwin, &ch,1);
-              //   wprintw(lbwin, &ch);
-          /// wrefresh(lbwin);
-          /// lstr.push_back(ch);
-              //   str[pCur++] = ch;
 
           // lbwin, rbwin event
           char c;
-          c=key&0xff;
+          c = key & 0xff;
           focus->addChar(c);
-          // focus->wrefresh();
           focus->waitUpdate();
           break;
       }
       Window::update();
     }
-    
-    this_thread::sleep_for(chrono::milliseconds(100));
+
+    this_thread::sleep_for(chrono::milliseconds(50));
   }
 
   // pause the screen output
@@ -251,35 +253,28 @@ int main(int argc, char *argv[]) {
 
 // }
 
-int cmd_decode(string str){
+int cmd_decode(string str) {
   cxxopts::Options opt("cmd args");
 
-  opt.add_options()
-  ("m,mode","HMI communicate mode:\n"
-            "\tsngarr, sngmat, sngstr,\n"
-            "\tsnparr, snpmat, snpstr",
-                    cxxopts::value<string>())
-  ("s,save", "save file",cxxopts::value<string>(), "FILE")
-  ("l,load", "load file", cxxopts::value<string>(), "FILE");
+  opt.add_options()("m,mode",
+                    "HMI communicate mode:\n"
+                    "\tsngarr, sngmat, sngstr,\n"
+                    "\tsnparr, snpmat, snpstr",
+                    cxxopts::value<string>())("s,save", "save file",
+                                              cxxopts::value<string>(), "FILE")(
+      "l,load", "load file", cxxopts::value<string>(), "FILE");
   // ("list","list all");
-  map<string,int> CmdArg{
-    {"-m",1},
-    {"--mode",1},
-    {"-s",2},
-    {"--save",2},
-    {"-l",3},
-    {"--load",3}
-    };
-  map<string,int> ModeArg{
-    {"snparr",1},
-    {"snpmat",2},
-    {"snpstr",3},
-    };
+  map<string, int> CmdArg{{"-m", 1},     {"--mode", 1}, {"-s", 2},
+                          {"--save", 2}, {"-l", 3},     {"--load", 3}};
+  map<string, int> ModeArg{
+      {"snparr", 1},
+      {"snpmat", 2},
+      {"snpstr", 3},
+  };
   // vector<string> strs;
   string s;
-  while (getline(stringstream(str),s,' '))
-  {
-    int a=CmdArg[s];
+  while (getline(stringstream(str), s, ' ')) {
+    int a = CmdArg[s];
     // switch (a)
     // {
     // case 1: // mode
@@ -297,72 +292,68 @@ int cmd_decode(string str){
     // case 2: // save
     // s++;
     // auto f = fopen(s,"a");
-    
+
     // fwrite()
     // case 3: // load
     // default:
     //   break;
     // }
   }
-  
+
   // boost::split(strs,str.c_str(),[](char c){return ' ';});
   // auto res = opt.parse(strs.size(),strs.data());
   // for (auto& s:strs)
   // {
-    int a=CmdArg[s];
-    // switch (a)
-    // {
-    // case 1: // mode
-    //   s++;
-    //   if(ModeArg[s]==1)
-    //     HMI_snget_array();
-    //   else if(ModeArg[s]==2)
-    //     // {
-    //     //   // HMI_snget_
-    //     // }
-    //   else if(ModeArg[s]==3)
-    //     {}
+  int a = CmdArg[s];
+  // switch (a)
+  // {
+  // case 1: // mode
+  //   s++;
+  //   if(ModeArg[s]==1)
+  //     HMI_snget_array();
+  //   else if(ModeArg[s]==2)
+  //     // {
+  //     //   // HMI_snget_
+  //     // }
+  //   else if(ModeArg[s]==3)
+  //     {}
 
-    //   break;
-    // case 2: // save
-    // s++;
-    // auto f = fopen(s,"a");
-    
-    // fwrite()
-    // case 3: // load
-    // default:
-    //   break;
-    // }
+  //   break;
+  // case 2: // save
+  // s++;
+  // auto f = fopen(s,"a");
+
+  // fwrite()
+  // case 3: // load
+  // default:
+  //   break;
   // }
-  
-  
-    return 0;
+  // }
+
+  return 0;
 }
 
-void change_win(){
-  static int index=0;
+void change_win() {
+  static int index = 0;
   // number: lbwin:0, rtwin:1, rbwin:2
-  index=++index%3;
-  if(index==0){
-    focus=&lbwin;
+  index = ++index % 3;
+  if (index == 0) {
+    focus = &lbwin;
     rtwin.resize(LINES, COLS / 2);
     rtwin.waitUpdate();
     // rtwin.wrefresh();
     focus->touch();
     focus->waitUpdate();
     // rtwin.wrefresh();
-  }
-  else if (index==1){
-    focus=&rtwin;
+  } else if (index == 1) {
+    focus = &rtwin;
     focus->waitUpdate();
 
-  }
-  else{
-    rtwin.resize(LINES-SCORE_SIZE, COLS / 2);
-    focus=&rbwin;
+  } else {
+    rtwin.resize(LINES - SCORE_SIZE, COLS / 2);
+    focus = &rbwin;
     focus->touch();
     rtwin.waitUpdate();
     rbwin.waitUpdate();
   }
-  
 }

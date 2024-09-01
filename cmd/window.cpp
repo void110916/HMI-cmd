@@ -11,9 +11,14 @@ Window::Window(int height, int width, int startY, int startX, std::string name,
   box(wbox, 0, 0);
 
   w = derwin(wbox, height - 2, width - 2, 1, 1);
-  nodelay(w,true);
+  // box(w,0,0);
+  nodelay(w, true);
+  keypad(w, TRUE);
+  intrflush(w, TRUE);
+
   leaveok(w, leavok);
   leaveok(wbox, leavok);
+
   if (!name.empty()) {
     this->name = name;
     mvwprintw(wbox, 0, 1, name.c_str());
@@ -26,10 +31,7 @@ Window::Window(int height, int width, int startY, int startX, std::string name,
 
 int Window::wrefresh() { return ::wrefresh(w); }
 
-int Window::refresh() {
-  // touchwin(stdscr);
-  return ::refresh();
-}
+int Window::refresh() { return ::refresh(); }
 
 void Window::waitUpdate() {
   wnoutrefresh(wbox);
@@ -75,18 +77,30 @@ void Window::addChar(char ch) {
   waddch(w, ch);
 }
 void Window::addString(std::string str) {
+  int y, x;
+  getyx(w, y, x);
+  // if (keyWin) {
+  if (cursor != 0) {
+    this->str += '\n';
+    waddch(w,'\n');
+    cursor++;
+  }
+
+  // }
   this->str.insert(cursor, str);
   cursor += str.size();
-  wprintw(w, "%s\n", str.c_str());
-  //   wrefresh();
+  waddnstr(w, str.data(), str.size());
+  // wprintw(w, "%s\n", str.c_str());
+  
+  // if (y < height-2-1)
+  // waddch(w, '\n');
 }
 
 std::string Window::popString() {
   auto string = str;
   str.clear();
   werase(w);
-  wmove(w, 1, 1);
-  //   wrefresh();
+  wmove(w, 0, 0);
   return string;
 }
 
@@ -123,7 +137,7 @@ void Window::keyDown() {}
 void Window::keyLeft() {
   int x, y;
   getyx(w, y, x);
-  if (x == 1) {
+  if (x == 0) {
     if (y > 1) {
       wmove(w, y - 1, x);
       cursor--;
@@ -136,13 +150,14 @@ void Window::keyLeft() {
 void Window::keyRight() {
   int x, y;
   getyx(w, y, x);
-  if (x == width - 1) {
-    if (y < height - 1) {
-      wmove(w, y + 1, 1);
+  auto size = str.size();
+  if (cursor == size) {
+    if (y < height - 3) {
+      wmove(w, y + 1, 0);
       cursor++;
     }
     return;
   }
-  wmove(w, y, x - 1);
+  wmove(w, y, x + 1);
   cursor++;
 }
