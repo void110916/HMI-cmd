@@ -9,9 +9,10 @@ int main() {
   WINDOW *wb = newwin(3, COLS, LINES - 3, 0);
   WINDOW *tw = derwin(wt, LINES - 3 - 2, COLS - 2, 1, 1);
   WINDOW *bw = derwin(wb, 3 - 2, LINES - 3 - 2, 1, 1);
-
+  leaveok(wt,true);
+  leaveok(tw,true);
   scrollok(tw, true);
-  wsetscrreg(tw, 0, COLS - 12);
+  wsetscrreg(tw, 0, LINES - 3 - 2);
   box(wt, 0, 0);
 
   box(wb, 0, 0);
