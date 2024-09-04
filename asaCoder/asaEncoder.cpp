@@ -2,13 +2,12 @@
 
 // #include <QDebug>
 // #include <QString>
+#include <cstdint>
 #include <cstdio>
 #include <format>
 #include <limits>
-#include <cstdint>
 
 #include "endianness.h"
-
 
 namespace ASAEncoder {
 
@@ -194,9 +193,10 @@ string ASADecode::get() {
   // if (!isDone) return "";
   string text = "";
   if (pkg_type == PAC_type::AR) {
-    text = std::format("{:s}_{:d} :\n    {{ {:s} }}\n\n",getTypeStr(ar_type),ar_num,dataTransfirm((HMI_type)ar_type, ar_dat));
+    text = std::format("{:s}_{:d} :\n    {{ {:s} }}\n\n", getTypeStr(ar_type),
+                       ar_num, dataTransfirm((HMI_type)ar_type, ar_dat));
   } else if (pkg_type == PAC_type::MT) {
-    string size = std::format("{:d}x{:d}",mt_numy,mt_numx);
+    string size = std::format("{:d}x{:d}", mt_numy, mt_numx);
     string mt;
     int mt_sizeof = mt_dlen / (mt_numy * mt_numx);
     for (int i = 0; i < mt_numy; i++) {
@@ -221,28 +221,36 @@ string ASADecode::get() {
       auto&& it = make_move_iterator(st_dat.begin());
       string st;
       if (info[0] == "ui8"s) {
-        dat.insert(dat.begin(), it, it + std::stoi(info[1]) * sizeof(std::uint8_t));
+        dat.insert(dat.begin(), it,
+                   it + std::stoi(info[1]) * sizeof(std::uint8_t));
         st = dataTransfirm(HMI_type::UI8, dat);
       } else if (info[0] == "ui16"s) {
-        dat.insert(dat.begin(), it, it + std::stoi(info[1]) * sizeof(std::uint16_t));
+        dat.insert(dat.begin(), it,
+                   it + std::stoi(info[1]) * sizeof(std::uint16_t));
         st = dataTransfirm(HMI_type::UI16, dat);
       } else if (info[0] == "ui32"s) {
-        dat.insert(dat.begin(), it, it + std::stoi(info[1]) * sizeof(std::uint32_t));
+        dat.insert(dat.begin(), it,
+                   it + std::stoi(info[1]) * sizeof(std::uint32_t));
         st = dataTransfirm(HMI_type::UI32, dat);
       } else if (info[0] == "ui64"s) {
-        dat.insert(dat.begin(), it, it + std::stoi(info[1]) * sizeof(std::uint64_t));
+        dat.insert(dat.begin(), it,
+                   it + std::stoi(info[1]) * sizeof(std::uint64_t));
         st = dataTransfirm(HMI_type::UI64, dat);
       } else if (info[0] == "i8"s) {
-        dat.insert(dat.begin(), it, it + std::stoi(info[1]) * sizeof(std::int8_t));
+        dat.insert(dat.begin(), it,
+                   it + std::stoi(info[1]) * sizeof(std::int8_t));
         st = dataTransfirm(HMI_type::I8, dat);
       } else if (info[0] == "i16"s) {
-        dat.insert(dat.begin(), it, it + std::stoi(info[1]) * sizeof(std::int16_t));
+        dat.insert(dat.begin(), it,
+                   it + std::stoi(info[1]) * sizeof(std::int16_t));
         st = dataTransfirm(HMI_type::I16, dat);
       } else if (info[0] == "i32"s) {
-        dat.insert(dat.begin(), it, it + std::stoi(info[1]) * sizeof(std::int32_t));
+        dat.insert(dat.begin(), it,
+                   it + std::stoi(info[1]) * sizeof(std::int32_t));
         st = dataTransfirm(HMI_type::I32, dat);
       } else if (info[0] == "i64"s) {
-        dat.insert(dat.begin(), it, it + std::stoi(info[1]) * sizeof(std::int64_t));
+        dat.insert(dat.begin(), it,
+                   it + std::stoi(info[1]) * sizeof(std::int64_t));
         st = dataTransfirm(HMI_type::I64, dat);
       } else if (info[0] == "f32"s) {
         dat.insert(dat.begin(), it, it + std::stoi(info[1]) * sizeof(float));
@@ -260,10 +268,9 @@ string ASADecode::get() {
   return text;
 }
 
-
 void ASADecode::putArray(uint8_t ar_type, uint8_t ar_num) {
   const uint8_t typeSize[] = {1, 2, 4, 8, 1, 2, 4, 8, 4, 8};
-  this->pkg_type=PAC_type::AR;
+  this->pkg_type = PAC_type::AR;
   this->ar_type = ar_type;
   this->ar_num = ar_num;
   ar_dlen = ar_num * typeSize[ar_type];
@@ -272,7 +279,7 @@ void ASADecode::putArray(uint8_t ar_type, uint8_t ar_num) {
 
 void ASADecode::putMatrix(uint8_t mt_type, uint8_t mt_numy, uint8_t mt_numx) {
   const uint8_t typeSize[] = {1, 2, 4, 8, 1, 2, 4, 8, 4, 8};
-  this->pkg_type=PAC_type::MT;
+  this->pkg_type = PAC_type::MT;
   this->mt_type = mt_type;
   this->mt_numy = mt_numy;
   this->mt_numx = mt_numx;
@@ -281,13 +288,12 @@ void ASADecode::putMatrix(uint8_t mt_type, uint8_t mt_numy, uint8_t mt_numx) {
 }
 
 void ASADecode::putStruct(string st_fs) {
-  this->pkg_type=PAC_type::ST;
-  this->st_fs.insert(this->st_fs.begin(),std::move_iterator(st_fs.begin()),std::move_iterator(st_fs.end()));
-  this->st_fs_len=this->st_fs.size();
+  this->pkg_type = PAC_type::ST;
+  this->st_fs.insert(this->st_fs.begin(), std::move_iterator(st_fs.begin()),
+                     std::move_iterator(st_fs.end()));
+  this->st_fs_len = this->st_fs.size();
   this->st_dat.resize(UINT16_MAX);
 }
-
-
 
 void ASADecode::clear() {
   isProcessing = false;
@@ -350,7 +356,7 @@ inline string ASADecode::dataTransfirm(HMI_type type, vector<uint8_t> data) {
   else
     return "";
 }
-
+int ASADecode::getType() { return pkg_type; }
 // inline string ASADecode::getTypeStr(int typeNum) {
 //   if (typeNum == 0)
 //     return "i8"s;

@@ -147,6 +147,7 @@ class ASADecode {
   void putMatrix(uint8_t mt_type,uint8_t mt_numy,uint8_t mt_numx);
   void putStruct(string st_fs);
   static bool isSync(char buff);
+  int getType();
   inline string getTypeStr(int typeNum)
   {
   if (typeNum == 0)
