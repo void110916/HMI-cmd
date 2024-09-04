@@ -194,7 +194,7 @@ string ASADecode::get() {
   // if (!isDone) return "";
   string text = "";
   if (pkg_type == PAC_type::AR) {
-    text = std::format("{:s}_{:d} :\r\n    {{ {:s} }}\r\n\r\n",getTypeStr(ar_type),ar_num,dataTransfirm((HMI_type)ar_type, ar_dat));
+    text = std::format("{:s}_{:d} :\n    {{ {:s} }}\n\n",getTypeStr(ar_type),ar_num,dataTransfirm((HMI_type)ar_type, ar_dat));
   } else if (pkg_type == PAC_type::MT) {
     string size = std::format("{:d}x{:d}",mt_numy,mt_numx);
     string mt;
@@ -204,13 +204,13 @@ string ASADecode::get() {
       vector<uint8_t> oneline(make_move_iterator(it),
                               make_move_iterator(it + mt_numx * mt_sizeof));
       string&& st = dataTransfirm((HMI_type)mt_type, oneline);
-      mt += "    { "s + st + " }\r\n"s;
+      mt += "    { "s + st + " }\n"s;
     }
-    text = getTypeStr(mt_type) + "_" + size + " :\r\n{\r\n" + mt + "}\r\n\r\n";
+    text = getTypeStr(mt_type) + "_" + size + " :\n{\n" + mt + "}\n\n";
   } else if (pkg_type == PAC_type::ST) {
     text = string(reinterpret_cast<char*>(st_fs.data()), st_fs.size());
     auto type = std::istringstream(text);
-    text = regex_replace(text, regex(","), " , ") + " :\r\n{\r\n";
+    text = regex_replace(text, regex(","), " , ") + " :\n{\n";
     string d;
     while (std::getline(type, d, ',')) {
       array<string, 2> info;
@@ -251,9 +251,9 @@ string ASADecode::get() {
         dat.insert(dat.begin(), it, it + std::stoi(info[1]) * sizeof(double));
         st = dataTransfirm(HMI_type::F64, dat);
       }
-      text += "    :{ "s + st + " }\r\n";
+      text += "    :{ "s + st + " }\n";
     }
-    text += "}\r\n\r\n"s;
+    text += "}\n\n"s;
   }
   // clear();
   isDone = false;
