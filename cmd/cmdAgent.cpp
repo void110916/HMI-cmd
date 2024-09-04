@@ -30,9 +30,6 @@ int main(int argc, char *argv[]) {
                                            cxxopts::value<string>(), "NAME")(
       "b,baud", "serial port baud rate",
       cxxopts::value<int>()->default_value("38400"), "NUM");
-  // ("t,time", "serial port timeout (s)",
-  //   cxxopts::value<int>()->default_value("0"),"NUM");
-
   auto res = opt.parse(argc, argv);
   if (res.count("help")) {
     cout << opt.help() << endl;
@@ -40,13 +37,9 @@ int main(int argc, char *argv[]) {
   }
   string comStr;
   int baud;
-  // int time;
-  // get serial args
   try {
     comStr = res["p"].as<string>();
     baud = res["b"].as<int>();
-    // time = res["t"].as<int>();
-    // cout << baud << endl;
   } catch (const cxxopts::exceptions::exception &e) {
     cout << e.what() << endl;
     exit(1);
@@ -62,6 +55,7 @@ int main(int argc, char *argv[]) {
   // ======================
   // init global window
   initscr();
+  // TODO: enable color
   // ======================
   //   set keyboard property
   curs_set(1);
@@ -73,44 +67,7 @@ int main(int argc, char *argv[]) {
   refresh();
   // ======================
   // init sub window
-
-  /// ltwin = newwin(LINES - SCORE_SIZE, COLS / 2, 0, 0);
-  /// rtwin = newwin(LINES, COLS / 2, 0, COLS / 2);
-  /// lbwin = newwin(SCORE_SIZE, COLS / 2, LINES - SCORE_SIZE, 0);
-  /// rbwin = newwin(LINES - SCORE_SIZE, COLS / 2, 0, COLS / 2);
-
-  /// box(ltwin, 0, 0);
-  /// mvwprintw(ltwin, 0, 1, " port terminal ");
-  /// wmove(ltwin, 1, 1);
-  /// scrollok(ltwin, true);
-  /// wsetscrreg(ltwin, 1, LINES - SCORE_SIZE);
-  /// wrefresh(ltwin);
-
-  /// box(lbwin, 0, 0);
-  /// wmove(lbwin, 1, 1);
-  /// wrefresh(lbwin);
-
-  /// box(rtwin, 0, 0);
-  /// mvwprintw(rtwin, 0, 1, " workspace ");
-  /// wrefresh(rtwin);
-
-  // refresh();
-
-  // WINDOW *ltbox=subwin(stdscr,LINES- SCORE_SIZE,COLS/2,0,0);
-  // WINDOW *lbbox=subwin(stdscr,SCORE_SIZE,COLS/2,LINES- SCORE_SIZE,0);
-  // // touchwin(stdscr);
-  // // refresh();
-  // WINDOW *rtbox=subwin(stdscr,LINES,COLS/2,0,COLS/2);
-  // box(ltbox,0,0);
-  // mvwprintw(ltbox, 0, 1, " port terminal ");
-  // box(lbbox,0,0);
-  // box(rtbox,0,0);
-  // mvwprintw(rtbox, 0, 1, " workspace ");
-  // touchwin(stdscr);
-  // refresh();
-
-  ltwin =
-      Window(LINES - SCORE_SIZE, COLS / 2, 0, 0, " port terminal ", true);
+  ltwin = Window(LINES - SCORE_SIZE, COLS / 2, 0, 0, " port terminal ", true);
   lbwin = Window(SCORE_SIZE, COLS / 2, LINES - SCORE_SIZE, 0);
   rbwin = Window(SCORE_SIZE, COLS / 2, LINES - SCORE_SIZE, COLS / 2);
   rtwin = Window(LINES, COLS / 2, 0, COLS / 2, " workspace ");
@@ -124,10 +81,10 @@ int main(int argc, char *argv[]) {
 
   // string lstr, rstr;
   bool putSync = false;
+  static bool firstPage = true;
   while (1) {
-    // read serial
+    // read serial =============================
     string s;
-    // focus->wrefresh();
     auto chars = serial.readAsync(256, 5).get();
     if (!chars.empty()) {
       for (const char ch : chars) {
@@ -151,7 +108,7 @@ int main(int argc, char *argv[]) {
       Window::update();
     }
     // ======================
-    // verify key
+    // verify key ==================
     int key = focus->getch();
     if (key != ERR) {
       switch (key) {
@@ -164,42 +121,25 @@ int main(int argc, char *argv[]) {
         }
         case '\n':  // enter //old: 10
         {
-          /// wprintw(ltwin," %s\n", lstr.c_str());
-          /// box(ltwin, 0, 0);
-          /// wrefresh(ltwin);
-          /// werase(lbwin);
-          /// box(lbwin, 0, 0);
-          /// wmove(lbwin, 1, 1);
-          /// wrefresh(lbwin);
-          /// lstr.clear();
-
           // left event =============
           if (focus == &lbwin) {
-            string str = lbwin.popString();
-
+            string str = lbwin.popString() + "\n";
+            serial.writeAsync(str);
             ltwin.addString(str);
+
             ltwin.waitUpdate();
             lbwin.waitUpdate();
           }
           // ====================
           // right top event========
           else if (focus == &rtwin) {
-            focus->addChar('\n');
+                focus->addChar('\n');
             focus->waitUpdate();
           }
           break;
         }
         case KEY_BACKSPACE:  // backspace
         {
-          /// int x, y;
-          /// getyx(lbwin, y, x);
-          /// if (x < 2) break;
-          /// const char space = ' ';
-          /// mvwaddnstr(lbwin, y, x - 1, &space, 1);
-          /// wmove(lbwin, y, x - 1);
-          /// wrefresh(lbwin);
-          /// lstr.pop_back();
-
           focus->backChar();
           focus->waitUpdate();
           break;
