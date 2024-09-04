@@ -5,11 +5,10 @@
 #include <thread>
 #include <vector>
 
+#include "HMI.h"
 #include "asaEncoder.h"
 #include "serialPort.h"
 #include "window.h"
-
-// #include "edit.h"
 
 using namespace std;
 // #define SCORE_SIZE 3
@@ -81,6 +80,7 @@ int main(int argc, char *argv[]) {
 
   // string lstr, rstr;
   bool putSync = false;
+  Object::setCol(COLS / 2 - 2);
   static bool firstPage = true;
   while (1) {
     // read serial =============================
@@ -93,14 +93,21 @@ int main(int argc, char *argv[]) {
           if (ch == '\r') continue;
           ltwin.addChar(ch);
           if (decode.isSync(ch)) {
-            serial.writeAsync("~ACK\n");
-            ltwin.addString("~ACK");
+            string str = "~ACK\n";
+            serial.writeAsync(str);
+            ltwin.addString(str);
           }
           putSync = ASAEncoder::ASAEncode::isSync(ch);
         }
         if (decode.isDone) {
           // add struct object
-          // add struct object to window
+          Object o((Object::TYPE)decode.getType(), decode.get());
+          // add struct object to window (first page)
+          if (firstPage) {
+            string str = o.getVisible();
+            rtwin.addString(str);
+            rtwin.waitUpdate();
+          }
         }
       }
       // ltwin.touch();
@@ -133,8 +140,21 @@ int main(int argc, char *argv[]) {
           // ====================
           // right top event========
           else if (focus == &rtwin) {
+            if (firstPage) {
+              int idx = focus->getline();
+              if (Object::getObj(idx)) {
+                // focus->clear(); // TODO: erase window
+              }
+            } else {
+              if (focus->getline() == 0) {
+                // save edit obj and jump back
+
+              } else {
                 focus->addChar('\n');
+              }
+            }
             focus->waitUpdate();
+            firstPage = !firstPage;
           }
           break;
         }
@@ -144,7 +164,7 @@ int main(int argc, char *argv[]) {
           focus->waitUpdate();
           break;
         }
-        case KEY_DC: // delete
+        case KEY_DC:  // delete
           focus->delChar();
           focus->waitUpdate();
           break;
@@ -168,7 +188,8 @@ int main(int argc, char *argv[]) {
           change_win();
           break;
         default:
-
+          // rtwin event
+          if (focus == &rtwin && firstPage) break;
           // lbwin, rbwin event
           char c;
           c = key & 0xff;
