@@ -1,5 +1,5 @@
 #include "window.h"
-
+#include <algorithm>
 std::vector<Window *> Window::windows;
 
 Window::~Window() {}
@@ -79,19 +79,13 @@ void Window::addChar(char ch) {
 void Window::addString(std::string str) {
   int y, x;
   getyx(w, y, x);
-  // if (keyWin) {
-  if (cursor != 0) {
-    this->str += '\n';
-    waddch(w,'\n');
-    cursor++;
-  }
-
-  // }
+  
+  rawLine+=std::ranges::count(str,'\n');
   this->str.insert(cursor, str);
   cursor += str.size();
   waddnstr(w, str.data(), str.size());
   // wprintw(w, "%s\n", str.c_str());
-  
+
   // if (y < height-2-1)
   // waddch(w, '\n');
 }
@@ -161,3 +155,5 @@ void Window::keyRight() {
   wmove(w, y, x + 1);
   cursor++;
 }
+
+int Window::getline() { return rawLine; }
