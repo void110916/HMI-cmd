@@ -97,6 +97,7 @@ int main(int argc, char *argv[]) {
             serial.writeAsync(str);
             ltwin.addString(str);
           }
+          ltwin.waitUpdate();
           putSync = ASAEncoder::ASAEncode::isSync(ch);
         }
         if (decode.isDone) {
@@ -111,7 +112,7 @@ int main(int argc, char *argv[]) {
         }
       }
       // ltwin.touch();
-      ltwin.waitUpdate();
+      
       Window::update();
     }
     // ======================
