@@ -12,10 +12,11 @@ class Window {
 
   int height, width, startY, startX;
   std::string name;
+  int cursor = 0;
   std::string str;
   bool showOnly;
-  int cursor = 0;
-  int rawLine = 0;
+  
+  int rawLine = 0; // unused
 
  public:
   WINDOW *w;
@@ -41,6 +42,7 @@ class Window {
   void resize(int height, int width);
   void touch();
   void untouch();
+  void clear();
   void addChar(char ch);
   void addString(std::string str);
   std::string popString();
@@ -52,7 +54,7 @@ class Window {
   void keyDown();
   void keyLeft();
   void keyRight();
-  int getline();
+  int getline();  // unused
 };
 
 #endif  // WINDOW_H
