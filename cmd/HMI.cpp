@@ -1,19 +1,24 @@
-#include "edit.h"
-#include "asaEncoder.h"
+#include "HMI.h"
+
 #include <format>
+
+#include "asaEncoder.h"
 using namespace ASAEncoder;
 int Object::col;
 std::vector<Object *> Object::objs;
 
 Object::Object(TYPE type, std::string str) : type(type) {
   name = ASADecode::getPacTypeStr(type) + std::to_string(objs.size());
-  int pos=str.find('\n');
-  format = str.substr(0,pos-1);
-  detail = str.substr(pos+1);
-  objs.push_back(this);
+  int pos = str.find('\n');
+  format = str.substr(0, pos - 1);
+  detail = str.substr(pos + 1);
+  objs.push_back(new Object(*this));
 }
 
-Object::~Object() {}
+Object::~Object() {
+  auto find = std::find(objs.begin(), objs.end(), this);
+  if (find != objs.end()) objs.erase(find);
+}
 std::string Object::getAllVisible() {
   std::string str;
   for (auto obj : objs) {
@@ -33,9 +38,9 @@ Object *Object::getObj(int index) {
 void Object::setCol(int col) { Object::col = col; }
 
 std::string Object::getVisible() {
-
   std::string str =
-      std::format("{0:^4}|{1:^{3}}|{2:^{3}}", ASADecode::getPacTypeStr(type), name, format, col/2-3);
+      std::format("{0:^4}|{1:^{3}}|{2:^{3}}\n", ASADecode::getPacTypeStr(type),
+                  name, format, col / 2 - 4);
   return str;
 }
 std::string Object::getName() const { return name; }

@@ -2,7 +2,7 @@
 #include <vector>
 class Object {
  public:
-  enum TYPE:int { MATRIX = 2, STRUCT = 3 };  // , FILE = 4
+  enum TYPE : int { MATRIX = 2, STRUCT = 3 };  // , FILE = 4
 
  private:
   static std::vector<Object *> objs;
