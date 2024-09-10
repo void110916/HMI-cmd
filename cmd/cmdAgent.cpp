@@ -55,6 +55,8 @@ int main(int argc, char *argv[]) {
   // init global window
   initscr();
   // TODO: enable color
+  start_color();
+  // init_pair();
   // ======================
   //   set keyboard property
   curs_set(1);
@@ -112,7 +114,7 @@ int main(int argc, char *argv[]) {
         }
       }
       // ltwin.touch();
-      
+
       Window::update();
     }
     // ======================
@@ -143,13 +145,21 @@ int main(int argc, char *argv[]) {
           else if (focus == &rtwin) {
             if (firstPage) {
               int idx = focus->getline();
-              if (Object::getObj(idx)) {
-                // focus->clear(); // TODO: erase window
+              auto o = Object::getObj(idx);
+              if (o) {
+                focus->clear();  // TODO: erase window
+                focus->addString(o->getName() + "\n");
+                focus->addString(o->getDetail());
+                focus->waitUpdate();
               }
             } else {
               if (focus->getline() == 0) {
-                // save edit obj and jump back
-
+                // save edit obj
+                auto str = focus->popString();
+                // jump back
+                focus->clear();
+                focus->addString(Object::getAllVisible());
+                focus->waitUpdate();
               } else {
                 focus->addChar('\n');
               }
@@ -169,19 +179,27 @@ int main(int argc, char *argv[]) {
           focus->delChar();
           focus->waitUpdate();
           break;
-        case KEY_DOWN:
-          focus->keyDown();
-          focus->waitUpdate();
+        case KEY_DOWN: {
+          if (focus == &rtwin) {
+            focus->keyDown();
+            focus->waitUpdate();
+          }
           break;
-        case KEY_UP:
-          focus->keyUp();
-          focus->waitUpdate();
+        }
+        case KEY_UP: {
+          if (focus == &rtwin) {
+            focus->keyUp();
+            focus->waitUpdate();
+          }
           break;
+        }
         case KEY_LEFT:
+          if (focus == &rtwin && firstPage) break;
           focus->keyLeft();
           focus->waitUpdate();
           break;
         case KEY_RIGHT:
+          if (focus == &rtwin && firstPage) break;
           focus->keyRight();
           focus->waitUpdate();
           break;
@@ -198,6 +216,9 @@ int main(int argc, char *argv[]) {
           focus->waitUpdate();
           break;
       }
+      // ltwin.addString(std::format("{}  {}\n",focus->name,focus->cursor));
+      ltwin.waitUpdate();
+      focus->waitUpdate();
       Window::update();
     }
 
