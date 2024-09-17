@@ -1,6 +1,7 @@
 #include "window.h"
 
 #include <algorithm>
+#include <format>
 std::vector<Window *> Window::windows;
 
 Window::~Window() {}
@@ -83,7 +84,7 @@ void Window::addString(std::string str) {
   int y, x;
   getyx(w, y, x);
 
-  rawLine += std::ranges::count(str, '\n');
+  // rawLine += std::ranges::count(str, '\n');
   this->str.insert(cursor, str);
   cursor += str.size();
   waddnstr(w, str.data(), str.size());
@@ -147,17 +148,17 @@ void Window::keyDown() {
   if (y == height - 3) return;
   // int pp = str.find('\n', cursor - 2);
   int p = str.find('\n', cursor);
-  int n = str.find('\n', p+1);
+  int n = str.find('\n', p + 1);
   if (n < 0) n = str.size();
   auto c = str[p + 1];
-  int num=str.size();
-  if (p + 1 >= str.size()) p=n=str.size();
+  int num = str.size();
+  if (p + 1 >= str.size()) p = n = str.size();
   int col = (n - p > x) ? x : n - p;
   mvwchgat(w, y, col, -1, A_NORMAL, 1, NULL);
   // rawLine++;
   y++;
   mvwchgat(w, y, col, -1, A_REVERSE, 1, NULL);
-  cursor = p + col+1;  // maybe +1?
+  cursor = p + col + 1;  // maybe +1?
 }
 
 void Window::keyLeft() {
@@ -187,6 +188,16 @@ void Window::keyRight() {
   }
   wmove(w, y, x + 1);
   cursor++;
+}
+
+void Window::printCurStr(std::string str) {
+  // TODO: unreset cursor and this->str
+  int y, x;
+  getyx(w, y, x);
+  std::string s = std::format("({:>3}, {:>3})\n", y, x);
+  wattron(w, COLOR_PAIR(2));
+  mvwaddnstr(w, 1, 0, s.data(), s.size());
+  wattroff(w, COLOR_PAIR(2));
 }
 
 int Window::getline() { return getcury(w); }

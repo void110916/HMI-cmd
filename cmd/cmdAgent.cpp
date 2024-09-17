@@ -56,7 +56,8 @@ int main(int argc, char *argv[]) {
   initscr();
   // TODO: enable color
   start_color();
-  // init_pair();
+  init_pair(2,COLOR_BLACK,COLOR_BLUE);  // 1 is A_REVERSE
+  // init_pair(2,COLOR_BLACK,COLOR_BLUE);
   // ======================
   //   set keyboard property
   curs_set(1);
@@ -147,8 +148,10 @@ int main(int argc, char *argv[]) {
               int idx = focus->getline();
               auto o = Object::getObj(idx);
               if (o) {
-                focus->clear();  // TODO: erase window
+                focus->clear();
                 focus->addString(o->getName() + "\n");
+                focus->printCurStr();
+                // focus->addString( + "\n");
                 focus->addString(o->getDetail());
                 focus->waitUpdate();
               }

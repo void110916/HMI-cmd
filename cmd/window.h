@@ -54,6 +54,7 @@ class Window {
   void keyDown();
   void keyLeft();
   void keyRight();
+  void printCurStr(std::string str="");
   int getline();  // unused
 };
 
