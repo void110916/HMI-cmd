@@ -18,10 +18,10 @@ link_directories(${CMAKE_SOURCE_DIR}/ncurses/lib)
 add_definitions(-DNCURSES_STATIC)
 add_compile_options("-fno-stack-protector")
 
-add_library(edit edit.cpp)
+add_library(object HMI.cpp)
 
 add_executable(PCDataAgent cmdAgent.cpp window.cpp)
-target_link_libraries(PCDataAgent cxxopts edit)
+target_link_libraries(PCDataAgent cxxopts object)
 target_link_libraries(PCDataAgent ncursesw -static)
 target_include_directories(PCDataAgent PUBLIC ${CMAKE_SOURCE_DIR}/ncurses/include)
 target_link_directories(PCDataAgent PUBLIC ${CMAKE_SOURCE_DIR}/ncurses/lib)

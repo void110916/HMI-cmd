@@ -54,9 +54,9 @@ int main(int argc, char *argv[]) {
   // ======================
   // init global window
   initscr();
-  // TODO: enable color
+  // enable color
   start_color();
-  init_pair(2,COLOR_BLACK,COLOR_BLUE);  // 1 is A_REVERSE
+  init_pair(2, COLOR_BLACK, COLOR_BLUE);  // 1 is A_REVERSE
   // init_pair(2,COLOR_BLACK,COLOR_BLUE);
   // ======================
   //   set keyboard property
@@ -111,6 +111,7 @@ int main(int argc, char *argv[]) {
             string str = o.getVisible();
             rtwin.addString(str);
             rtwin.waitUpdate();
+            focus->touch();
           }
         }
       }
@@ -121,20 +122,20 @@ int main(int argc, char *argv[]) {
     // ======================
     // verify key ==================
     int key = focus->getch();
+    int idx = 0;
+    string str;
+    static Object *o = nullptr;
     if (key != ERR) {
       switch (key) {
         case ISCTRL('o'):  // ESC
-        {
           endwin();
           if (serial.isOpen()) serial.close();
           return 0;
           break;
-        }
         case '\n':  // enter //old: 10
-        {
           // left event =============
           if (focus == &lbwin) {
-            string str = lbwin.popString() + "\n";
+            str = lbwin.popString() + "\n";
             serial.writeAsync(str);
             ltwin.addString(str);
 
@@ -144,9 +145,9 @@ int main(int argc, char *argv[]) {
           // ====================
           // right top event========
           else if (focus == &rtwin) {
-            if (firstPage) {
-              int idx = focus->getline();
-              auto o = Object::getObj(idx);
+            if (firstPage) {  // first page event
+              idx = focus->getline();
+              o = Object::getObj(idx);
               if (o) {
                 focus->clear();
                 focus->addString(o->getName() + "\n");
@@ -155,10 +156,13 @@ int main(int argc, char *argv[]) {
                 focus->addString(o->getDetail());
                 focus->waitUpdate();
               }
-            } else {
+            } else {  // second page event
               if (focus->getline() == 0) {
-                // save edit obj
-                auto str = focus->popString();
+                // TODO: save edit obj
+                str = focus->popString();
+                if (!o->change(str)) {
+                  ltwin.addString(">> fail change " + o->getName());
+                }
                 // jump back
                 focus->clear();
                 focus->addString(Object::getAllVisible());
@@ -169,33 +173,31 @@ int main(int argc, char *argv[]) {
             }
             focus->waitUpdate();
             firstPage = !firstPage;
+          } else if (focus == &rbwin) {
+            str = focus->popString();
+            cmd_decode(str);
           }
           break;
-        }
         case KEY_BACKSPACE:  // backspace
-        {
           focus->backChar();
           focus->waitUpdate();
           break;
-        }
         case KEY_DC:  // delete
           focus->delChar();
           focus->waitUpdate();
           break;
-        case KEY_DOWN: {
+        case KEY_DOWN:
           if (focus == &rtwin) {
             focus->keyDown();
             focus->waitUpdate();
           }
           break;
-        }
-        case KEY_UP: {
+        case KEY_UP:
           if (focus == &rtwin) {
             focus->keyUp();
             focus->waitUpdate();
           }
           break;
-        }
         case KEY_LEFT:
           if (focus == &rtwin && firstPage) break;
           focus->keyLeft();
@@ -235,86 +237,59 @@ int main(int argc, char *argv[]) {
   return 0;
 }
 
-// enum CmdArg{
-
-// }
-
+#include <boost/algorithm/string/classification.hpp>
+#include <boost/algorithm/string/split.hpp>
+#include <fstream>
 int cmd_decode(string str) {
-  cxxopts::Options opt("cmd args");
-
-  opt.add_options()("m,mode",
-                    "HMI communicate mode:\n"
-                    "\tsngarr, sngmat, sngstr,\n"
-                    "\tsnparr, snpmat, snpstr",
-                    cxxopts::value<string>())("s,save", "save file",
-                                              cxxopts::value<string>(), "FILE")(
-      "l,load", "load file", cxxopts::value<string>(), "FILE");
-  // ("list","list all");
   map<string, int> CmdArg{{"-m", 1},     {"--mode", 1}, {"-s", 2},
                           {"--save", 2}, {"-l", 3},     {"--load", 3}};
   map<string, int> ModeArg{
-      {"snparr", 1},
+      // {"snparr", 1},
       {"snpmat", 2},
       {"snpstr", 3},
+      {"snpfile", 4},
   };
-  // vector<string> strs;
+  vector<string> strs;
   string s;
-  while (getline(stringstream(str), s, ' ')) {
-    int a = CmdArg[s];
-    // switch (a)
-    // {
-    // case 1: // mode
-    //   s++;
-    //   if(ModeArg[s]==1)
-    //     HMI_snget_array();
-    //   else if(ModeArg[s]==2)
-    //     // {
-    //     //   // HMI_snget_
-    //     // }
-    //   else if(ModeArg[s]==3)
-    //     {}
-
-    //   break;
-    // case 2: // save
-    // s++;
-    // auto f = fopen(s,"a");
-
-    // fwrite()
-    // case 3: // load
-    // default:
-    //   break;
-    // }
-  }
-
-  // boost::split(strs,str.c_str(),[](char c){return ' ';});
+  boost::split(strs, str, boost::is_any_of(" "), boost::token_compress_on);
   // auto res = opt.parse(strs.size(),strs.data());
-  // for (auto& s:strs)
-  // {
-  int a = CmdArg[s];
-  // switch (a)
-  // {
-  // case 1: // mode
-  //   s++;
-  //   if(ModeArg[s]==1)
-  //     HMI_snget_array();
-  //   else if(ModeArg[s]==2)
-  //     // {
-  //     //   // HMI_snget_
-  //     // }
-  //   else if(ModeArg[s]==3)
-  //     {}
+  for (auto s = strs.begin(); s != strs.end(); s++) {
+    int a = CmdArg[*s];
+    Object *o;
+    switch (a) {
+      case 1: {  // mode
+        s++;
+        if (ModeArg[*s] == 4) {  // files
+        } else {                 // array, matrix, struct
+          o = Object::getObj(*(s + 1));
+          if (o != nullptr && serial.isOpen()) {
+            ASAEncoder::ASAEncode enc;
+            string str = o->getFormat()+ ":" +o->getDetail(); 
+            enc.put(str);
+            auto buf=enc.get();
+            serial.writeAsync(buf.data(),buf.size());
+          }
+        }
+        break;
+      }
+      case 2: {  // save
+        s++;
+        if (s == strs.end()) {  // save all objs
 
-  //   break;
-  // case 2: // save
-  // s++;
-  // auto f = fopen(s,"a");
-
-  // fwrite()
-  // case 3: // load
-  // default:
-  //   break;
-  // }
-  // }
+        } else {  // save single
+        }
+        fstream f;
+        f.open(*s, ios::out);
+        f << *s;
+        break;
+      }
+      case 3:  // load
+        break;
+      default: {
+        break;
+      }
+    }
+  }
 
   return 0;
 }

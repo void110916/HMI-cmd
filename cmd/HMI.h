@@ -17,11 +17,13 @@ class Object {
   ~Object();
   static std::string getAllVisible();
   static Object *getObj(int index);
+  static Object *getObj(std::string str);
   static void setCol(int col);
   std::string getName() const;
   std::string getFormat() const;
   std::string getDetail() const;
   std::string getVisible();
+  bool change(std::string str);
   void renName(std::string newTitle);
   void renDetail(std::string newDetail);
 };
