@@ -10,6 +10,25 @@
 #include "endianness.h"
 
 namespace ASAEncoder {
+// ASABasic
+ASABasic::ASABasic() {}
+
+ASABasic::~ASABasic() {}
+
+string ASABasic::getFormat() {
+  string str;
+  if (pkg_type == PAC_type::AR) {
+    str = std::format("{:s}_{:d}", type2str(ar_type), ar_num);
+  } else if (pkg_type == PAC_type::MT) {
+    str = std::format("{:s}_{:d}x{:d}", type2str(mt_type), mt_numy, mt_numx);
+  } else if (pkg_type == PAC_type::ST) {
+    str = string(reinterpret_cast<char*>(st_fs.data()), st_fs.size());
+  }
+  return str;
+}
+
+int ASABasic::getType() { return pkg_type; }
+
 
 // ASADecode
 ASADecode::ASADecode() {}
@@ -193,10 +212,9 @@ string ASADecode::get() {
   // if (!isDone) return "";
   string text = "";
   if (pkg_type == PAC_type::AR) {
-    text = std::format("{:s}_{:d} :\n    {{ {:s} }}\n\n", getTypeStr(ar_type),
-                       ar_num, dataTransfirm((HMI_type)ar_type, ar_dat));
+    text = getFormat() + " :\n    {{ " +
+           dataTransfirm((HMI_type)ar_type, ar_dat) + " }}\n\n";
   } else if (pkg_type == PAC_type::MT) {
-    string size = std::format("{:d}x{:d}", mt_numy, mt_numx);
     string mt;
     int mt_sizeof = mt_dlen / (mt_numy * mt_numx);
     for (int i = 0; i < mt_numy; i++) {
@@ -206,9 +224,9 @@ string ASADecode::get() {
       string&& st = dataTransfirm((HMI_type)mt_type, oneline);
       mt += "    { "s + st + " }\n"s;
     }
-    text = getTypeStr(mt_type) + "_" + size + " :\n{\n" + mt + "}\n\n";
+    text = getFormat() + " :\n{\n" + mt + "}\n\n";
   } else if (pkg_type == PAC_type::ST) {
-    text = string(reinterpret_cast<char*>(st_fs.data()), st_fs.size());
+    text = getFormat();
     auto type = std::istringstream(text);
     text = regex_replace(text, regex(","), " , ") + " :\n{\n";
     string d;
@@ -356,46 +374,9 @@ inline string ASADecode::dataTransfirm(HMI_type type, vector<uint8_t> data) {
   else
     return "";
 }
-int ASADecode::getType() { return pkg_type; }
-// inline string ASADecode::getTypeStr(int typeNum) {
-//   if (typeNum == 0)
-//     return "i8"s;
-//   else if (typeNum == 1)
-//     return "i16"s;
-//   else if (typeNum == 2)
-//     return "i32"s;
-//   else if (typeNum == 3)
-//     return "i64"s;
-//   else if (typeNum == 4)
-//     return "ui8"s;
-//   else if (typeNum == 5)
-//     return "ui16"s;
-//   else if (typeNum == 6)
-//     return "ui32"s;
-//   else if (typeNum == 7)
-//     return "ui64"s;
-//   else if (typeNum == 8)
-//     return "f32"s;
-//   else if (typeNum == 9)
-//     return "f64"s;
-//   else if (typeNum == 15)
-//     return "s"s;
-//   else
-//     return ""s;
-// }
 
 // ASAEncode
-ASAEncode::ASAEncode()
-// : ar_re("[if](?:8|16|32|64)_[0-9]+\\s*:\\s*\\{)+(?:[^\\{\\}]*)\\}"s,
-//         regex::optimize),
-//   mt_re(
-//       "[if](?:8|16|32|64)_[0-9]+(?:x[0-9]+)\\s*:(\\s*\\{)(?:\\s*\\{[^\\{\\}]*\\}\\s*)\\}"s,
-//       regex::optimize),
-//   st_re(
-//       "[if](?:8|16|32|64)_[0-9]+\\s*(?:,\\s*[if](?:8|16|32|64)_[0-9]+\\s*)+"s
-//       ":(\\s*\\{)(?:\\s*[if](?:8|16|32|64)_[0-9]+\\s*:\\s*\\{[^\\{\\}]*\\}\\s*)+\\}"s,
-//       regex::optimize)
-{
+ASAEncode::ASAEncode() {
   ar_re = regex("[if](?:8|16|32|64)_[0-9]+\\s*:\\s*\\{+(?:[^\\{\\}]*)\\}",
                 regex::ECMAScript | regex::optimize);
   mt_re = regex(
@@ -651,12 +632,6 @@ bool ASAEncode::put(string text) {
   }
   return true;
 }
-// template <typename T>
-// inline array<uint8_t, sizeof(T)> num2raw(T num) {
-//   array<uint8_t, sizeof(T)> raw;
-//   *reinterpret_cast<T*>(raw.data()) = data;
-//   return raw;
-// }
 
 template <typename T, typename f>
 vector<uint8_t> ASAEncode::transfirm(string data, const char* format,

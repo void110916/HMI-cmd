@@ -96,58 +96,26 @@ struct HMI_format {
   HMI_format(PAC_type type, ssub_match format) : type(type), format(format) {}
 };
 
-/**
- * @brief from serial port to PC
- *
- */
-class ASADecode {
- private:
-  // member
-  STATE decodeState = STATE::HEADER;
-  uint16_t count = 0;
-  uint16_t paclen = 0;
-  uint8_t chksum = 0;
+class ASABasic {
+ protected:
   uint8_t pkg_type = 0;
 
   uint8_t ar_type = 0;
   uint8_t ar_num = 0;
-  uint16_t ar_dlen = 0;
   vector<uint8_t> ar_dat;
 
   uint8_t mt_type = 0;
   uint8_t mt_numy = 0;
   uint8_t mt_numx = 0;
-  uint16_t mt_dlen = 0;
   vector<uint8_t> mt_dat;
 
-  uint8_t st_fs_len = 0;
   vector<uint8_t> st_fs;
-  uint16_t st_dlen = 0;
   vector<uint8_t> st_dat;
 
-  // function
-  void clear();
-  template <typename T>
-  string transfirm(vector<uint8_t> data);
-  inline string dataTransfirm(HMI_type type, vector<uint8_t> data);
-
  public:
-  // member
-  bool isProcessing = false;
-  bool isDone = false;
-
-  // function
-  ASADecode();
-  ~ASADecode();
-
-  bool put(uint8_t buff);
-  string get();
-  void putArray(uint8_t ar_type, uint8_t ar_num);
-  void putMatrix(uint8_t mt_type, uint8_t mt_numy, uint8_t mt_numx);
-  void putStruct(string st_fs);
-  static bool isSync(char buff);
-  int getType();
-  static inline string getTypeStr(int typeNum) {
+  ASABasic();
+  virtual ~ASABasic();
+  static inline string type2str(int typeNum) {
     if (typeNum == 0)
       return "i8"s;
     else if (typeNum == 1)
@@ -173,7 +141,7 @@ class ASADecode {
     else
       return ""s;
   }
-  static inline string getPacTypeStr(int typeNum) {
+  static inline string pacTypeStr(int typeNum) {
     if (typeNum == 1)
       return "AR"s;
     else if (typeNum == 2)
@@ -183,13 +151,56 @@ class ASADecode {
     else
       return ""s;
   }
+  int getType();
+  string getFormat();
+};
+/**
+ * @brief from serial port to PC
+ *
+ */
+class ASADecode : public ASABasic {
+ private:
+  // member
+  STATE decodeState = STATE::HEADER;
+  uint16_t count = 0;
+  uint16_t paclen = 0;
+  uint8_t chksum = 0;
+
+  uint16_t ar_dlen = 0;
+
+  uint16_t mt_dlen = 0;
+
+  uint8_t st_fs_len = 0;
+  uint16_t st_dlen = 0;
+
+  // function
+  void clear();
+  template <typename T>
+  string transfirm(vector<uint8_t> data);
+  inline string dataTransfirm(HMI_type type, vector<uint8_t> data);
+
+ public:
+  // member
+  bool isProcessing = false;
+  bool isDone = false;
+
+  // function
+  ASADecode();
+  ~ASADecode();
+
+  bool put(uint8_t buff);
+  string get();
+  void putArray(uint8_t ar_type, uint8_t ar_num);
+  void putMatrix(uint8_t mt_type, uint8_t mt_numy, uint8_t mt_numx);
+  void putStruct(string st_fs);
+  static bool isSync(char buff);
 };
 
 /**
  * @brief from PC to serial port
  *
  */
-class ASAEncode {
+class ASAEncode : public ASABasic {
   struct SplitStr {
     string str;
     int64_t lastIndex;
