@@ -112,6 +112,9 @@ class ASABasic {
   vector<uint8_t> st_fs;
   vector<uint8_t> st_dat;
 
+  template <typename T>
+  string transfirm(vector<uint8_t> data);
+  inline string dataTransfirm(HMI_type type, vector<uint8_t> data);
  public:
   ASABasic();
   virtual ~ASABasic();
@@ -153,6 +156,7 @@ class ASABasic {
   }
   int getType();
   string getFormat();
+  string detailStr();
 };
 /**
  * @brief from serial port to PC
@@ -166,18 +170,15 @@ class ASADecode : public ASABasic {
   uint16_t paclen = 0;
   uint8_t chksum = 0;
 
-  uint16_t ar_dlen = 0;
+  // uint16_t ar_dlen = 0;
 
-  uint16_t mt_dlen = 0;
+  // uint16_t mt_dlen = 0;
 
-  uint8_t st_fs_len = 0;
-  uint16_t st_dlen = 0;
+  // uint8_t st_fs_len = 0;
+  // uint16_t st_dlen = 0;
 
   // function
   void clear();
-  template <typename T>
-  string transfirm(vector<uint8_t> data);
-  inline string dataTransfirm(HMI_type type, vector<uint8_t> data);
 
  public:
   // member
@@ -211,20 +212,20 @@ class ASAEncode : public ASABasic {
   bool isError = false;
 
   static constexpr array<uint8_t, 3> _HEADER = {0xac, 0xac, 0xac};
-  PAC_type pkg_type;
+  // PAC_type pkg_type;
 
-  uint8_t ar_type = 0;
-  uint8_t ar_num = 0;
-  vector<uint8_t> ar_dat;
+  // uint8_t ar_type = 0;
+  // uint8_t ar_num = 0;
+  // vector<uint8_t> ar_dat;
 
-  uint8_t mt_type = 0;
-  uint8_t mt_numy = 0;
-  uint8_t mt_numx = 0;
-  vector<uint8_t> mt_dat;
+  // uint8_t mt_type = 0;
+  // uint8_t mt_numy = 0;
+  // uint8_t mt_numx = 0;
+  // vector<uint8_t> mt_dat;
 
-  // uint16_t st_fs_len = 0;
-  vector<uint8_t> st_fs;
-  vector<uint8_t> st_dat;
+  // // uint16_t st_fs_len = 0;
+  // vector<uint8_t> st_fs;
+  // vector<uint8_t> st_dat;
 
   vector<uint8_t> dat;
   regex

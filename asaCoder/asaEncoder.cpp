@@ -27,196 +27,14 @@ string ASABasic::getFormat() {
   return str;
 }
 
-int ASABasic::getType() { return pkg_type; }
-
-
-// ASADecode
-ASADecode::ASADecode() {}
-
-ASADecode::~ASADecode() {}
-
-bool ASADecode::isSync(char buff) {
-  static string cmd;
-  static bool inSync = false;
-  static regex re(R"(^~G[AMS])");
-  if (buff == '~') inSync = true;
-  if (inSync) cmd += buff;
-  if (inSync && buff == '\n') {
-    if (regex_search(cmd, re)) {
-      inSync = false;
-      cmd.clear();
-      return true;
-    }
-    cmd.clear();
-  }
-  return false;
-}
-
-bool ASADecode::put(uint8_t buff) {
-  if (isProcessing) {
-    switch (decodeState) {
-      case STATE::HEADER:
-        if (buff == 0xac) {
-          count++;
-          if (count == 3) {
-            decodeState++;
-            count = 0;
-          }
-        } else {
-          isProcessing = false;
-          return false;
-        }
-        break;
-      case STATE::pkg_len:
-        if (count == 0) {
-          paclen = buff << 8;
-          count++;
-        } else {
-          paclen += buff & UINT8_MAX;
-          count = 0;
-          decodeState++;
-        }
-        break;
-      case STATE::switch_type:
-        chksum += buff;
-        pkg_type = buff;
-        if (buff == 1)
-          decodeState = STATE::ar_type;
-        else if (buff == 2)
-          decodeState = STATE::mt_type;
-        else if (buff == 3)
-          decodeState = STATE::st_fs_len;
-        break;
-      case STATE::ar_type:
-        chksum += buff;
-        ar_type = buff;
-        decodeState++;
-        break;
-      case STATE::ar_num:
-        chksum += buff;
-        ar_num = buff;
-        decodeState++;
-        break;
-      case STATE::ar_dat_len:
-        chksum += buff;
-        if (count == 0) {
-          ar_dlen = buff << 8;
-          count = 1;
-        } else {
-          ar_dlen += buff;
-          count = 0;
-          ar_dat.resize(ar_dlen);
-          decodeState++;
-        }
-        break;
-      case STATE::ar_dat:
-        chksum += buff;
-        ar_dat[count++] = buff;
-        if (count == ar_dlen) {
-          count = 0;
-          decodeState++;
-        }
-        break;
-
-      case STATE::mt_type:
-        chksum += buff;
-        mt_type = buff;
-        decodeState++;
-        break;
-      case STATE::mt_numy:
-        chksum += buff;
-        mt_numy = buff;
-        decodeState++;
-        break;
-      case STATE::mt_numx:
-        chksum += buff;
-        mt_numx = buff;
-        decodeState++;
-        break;
-      case STATE::mt_dat_len:
-        chksum += buff;
-        if (count == 0) {
-          mt_dlen = buff << 8;
-          count = 1;
-        } else {
-          mt_dlen += buff;
-          count = 0;
-          mt_dat.resize(mt_dlen);
-          decodeState++;
-        }
-        break;
-      case STATE::mt_dat:
-        chksum += buff;
-        mt_dat[count++] = buff;
-        if (count == mt_dlen) {
-          count = 0;
-          decodeState++;
-        }
-        break;
-
-      case STATE::st_fs_len:
-        chksum += buff;
-        st_fs_len = buff;
-        st_fs.resize(st_fs_len);
-        decodeState++;
-        break;
-      case STATE::st_fs:
-        chksum += buff;
-        st_fs[count++] = buff;
-        if (count == st_fs_len) {
-          count = 0;
-          decodeState++;
-        }
-        break;
-      case STATE::st_dat_len:
-        chksum += buff;
-        if (count == 0) {
-          st_dlen = buff << 8;
-          count = 1;
-        } else {
-          count = 0;
-          st_dlen += buff;
-          st_dat.resize(st_dlen);
-          decodeState++;
-        }
-        break;
-      case STATE::st_dat:
-        chksum += buff;
-        st_dat[count++] = buff;
-        if (count == st_dlen) {
-          count = 0;
-          decodeState++;
-        }
-        break;
-      case STATE::chksum:
-        decodeState++;
-        isProcessing = false;
-        if ((chksum & UINT8_MAX) == buff)
-          isDone = true;
-        else
-          return false;
-        break;
-    }
-  } else {
-    if (buff == 0xac) {
-      clear();
-      isProcessing = true;
-      count++;
-    } else
-      return false;
-  }
-  return true;
-}
-
-string ASADecode::get() {
-  // if (!isDone) return "";
+string ASABasic::detailStr(){
   string text = "";
   if (pkg_type == PAC_type::AR) {
     text = getFormat() + " :\n    {{ " +
            dataTransfirm((HMI_type)ar_type, ar_dat) + " }}\n\n";
   } else if (pkg_type == PAC_type::MT) {
     string mt;
-    int mt_sizeof = mt_dlen / (mt_numy * mt_numx);
+    int mt_sizeof = mt_dat.size() / (mt_numy * mt_numx);
     for (int i = 0; i < mt_numy; i++) {
       auto&& it = mt_dat.begin() + mt_sizeof * mt_numx * i;
       vector<uint8_t> oneline(make_move_iterator(it),
@@ -281,6 +99,265 @@ string ASADecode::get() {
     }
     text += "}\n\n"s;
   }
+  return text;
+}
+
+int ASABasic::getType() { return pkg_type; }
+
+
+// ASADecode
+ASADecode::ASADecode() {}
+
+ASADecode::~ASADecode() {}
+
+bool ASADecode::isSync(char buff) {
+  static string cmd;
+  static bool inSync = false;
+  static regex re(R"(^~G[AMS])");
+  if (buff == '~') inSync = true;
+  if (inSync) cmd += buff;
+  if (inSync && buff == '\n') {
+    if (regex_search(cmd, re)) {
+      inSync = false;
+      cmd.clear();
+      return true;
+    }
+    cmd.clear();
+  }
+  return false;
+}
+
+bool ASADecode::put(uint8_t buff) {
+  static uint16_t dlen=0;
+  if (isProcessing) {
+    switch (decodeState) {
+      case STATE::HEADER:
+        if (buff == 0xac) {
+          count++;
+          if (count == 3) {
+            decodeState++;
+            count = 0;
+          }
+        } else {
+          isProcessing = false;
+          return false;
+        }
+        break;
+      case STATE::pkg_len:
+        if (count == 0) {
+          paclen = buff << 8;
+          count++;
+        } else {
+          paclen += buff & UINT8_MAX;
+          count = 0;
+          decodeState++;
+        }
+        break;
+      case STATE::switch_type:
+        chksum += buff;
+        pkg_type = buff;
+        if (buff == 1)
+          decodeState = STATE::ar_type;
+        else if (buff == 2)
+          decodeState = STATE::mt_type;
+        else if (buff == 3)
+          decodeState = STATE::st_fs_len;
+        break;
+      case STATE::ar_type:
+        chksum += buff;
+        ar_type = buff;
+        decodeState++;
+        break;
+      case STATE::ar_num:
+        chksum += buff;
+        ar_num = buff;
+        decodeState++;
+        break;
+      case STATE::ar_dat_len:
+        chksum += buff;
+        if (count == 0) {
+          dlen = buff << 8;
+          count = 1;
+        } else {
+          dlen += buff;
+          count = 0;
+          ar_dat.resize(dlen);
+          decodeState++;
+        }
+        break;
+      case STATE::ar_dat:
+        chksum += buff;
+        ar_dat[count++] = buff;
+        if (count == dlen) {
+          count = 0;
+          decodeState++;
+        }
+        break;
+
+      case STATE::mt_type:
+        chksum += buff;
+        mt_type = buff;
+        decodeState++;
+        break;
+      case STATE::mt_numy:
+        chksum += buff;
+        mt_numy = buff;
+        decodeState++;
+        break;
+      case STATE::mt_numx:
+        chksum += buff;
+        mt_numx = buff;
+        decodeState++;
+        break;
+      case STATE::mt_dat_len:
+        chksum += buff;
+        if (count == 0) {
+          dlen = buff << 8;
+          count = 1;
+        } else {
+          dlen += buff;
+          count = 0;
+          mt_dat.resize(dlen);
+          decodeState++;
+        }
+        break;
+      case STATE::mt_dat:
+        chksum += buff;
+        mt_dat[count++] = buff;
+        if (count == dlen) {
+          count = 0;
+          decodeState++;
+        }
+        break;
+
+      case STATE::st_fs_len:
+        chksum += buff;
+        dlen = buff;
+        st_fs.resize(dlen);
+        decodeState++;
+        break;
+      case STATE::st_fs:
+        chksum += buff;
+        st_fs[count++] = buff;
+        if (count == dlen) {
+          count = 0;
+          decodeState++;
+        }
+        break;
+      case STATE::st_dat_len:
+        chksum += buff;
+        if (count == 0) {
+          dlen = buff << 8;
+          count = 1;
+        } else {
+          count = 0;
+          dlen += buff;
+          st_dat.resize(dlen);
+          decodeState++;
+        }
+        break;
+      case STATE::st_dat:
+        chksum += buff;
+        st_dat[count++] = buff;
+        if (count == dlen) {
+          count = 0;
+          decodeState++;
+        }
+        break;
+      case STATE::chksum:
+        decodeState++;
+        isProcessing = false;
+        if ((chksum & UINT8_MAX) == buff)
+          isDone = true;
+        else
+          return false;
+        break;
+    }
+  } else {
+    if (buff == 0xac) {
+      clear();
+      dlen=0;
+      isProcessing = true;
+      count++;
+    } else
+      return false;
+  }
+  return true;
+}
+
+string ASADecode::get() {
+  // if (!isDone) return "";
+  string text = "";
+  if (pkg_type == PAC_type::AR) {
+    text = getFormat() + " :\n    {{ " +
+           dataTransfirm((HMI_type)ar_type, ar_dat) + " }}\n";
+  } else if (pkg_type == PAC_type::MT) {
+    string mt;
+    int mt_sizeof = mt_dat.size() / (mt_numy * mt_numx);
+    for (int i = 0; i < mt_numy; i++) {
+      auto&& it = mt_dat.begin() + mt_sizeof * mt_numx * i;
+      vector<uint8_t> oneline(make_move_iterator(it),
+                              make_move_iterator(it + mt_numx * mt_sizeof));
+      string&& st = dataTransfirm((HMI_type)mt_type, oneline);
+      mt += "    { "s + st + " }\n"s;
+    }
+    text = getFormat() + " :\n{\n" + mt + "}\n";
+  } else if (pkg_type == PAC_type::ST) {
+    text = getFormat();
+    auto type = std::istringstream(text);
+    text = regex_replace(text, regex(","), " , ") + " :\n{\n";
+    string d;
+    while (std::getline(type, d, ',')) {
+      array<string, 2> info;
+      auto&& at = d.find("_");
+      info[0] = d.substr(0, at);
+      info[1] = d.substr(at + 1);
+      vector<uint8_t> dat;
+      auto&& it = make_move_iterator(st_dat.begin());
+      string st;
+      if (info[0] == "ui8"s) {
+        dat.insert(dat.begin(), it,
+                   it + std::stoi(info[1]) * sizeof(std::uint8_t));
+        st = dataTransfirm(HMI_type::UI8, dat);
+      } else if (info[0] == "ui16"s) {
+        dat.insert(dat.begin(), it,
+                   it + std::stoi(info[1]) * sizeof(std::uint16_t));
+        st = dataTransfirm(HMI_type::UI16, dat);
+      } else if (info[0] == "ui32"s) {
+        dat.insert(dat.begin(), it,
+                   it + std::stoi(info[1]) * sizeof(std::uint32_t));
+        st = dataTransfirm(HMI_type::UI32, dat);
+      } else if (info[0] == "ui64"s) {
+        dat.insert(dat.begin(), it,
+                   it + std::stoi(info[1]) * sizeof(std::uint64_t));
+        st = dataTransfirm(HMI_type::UI64, dat);
+      } else if (info[0] == "i8"s) {
+        dat.insert(dat.begin(), it,
+                   it + std::stoi(info[1]) * sizeof(std::int8_t));
+        st = dataTransfirm(HMI_type::I8, dat);
+      } else if (info[0] == "i16"s) {
+        dat.insert(dat.begin(), it,
+                   it + std::stoi(info[1]) * sizeof(std::int16_t));
+        st = dataTransfirm(HMI_type::I16, dat);
+      } else if (info[0] == "i32"s) {
+        dat.insert(dat.begin(), it,
+                   it + std::stoi(info[1]) * sizeof(std::int32_t));
+        st = dataTransfirm(HMI_type::I32, dat);
+      } else if (info[0] == "i64"s) {
+        dat.insert(dat.begin(), it,
+                   it + std::stoi(info[1]) * sizeof(std::int64_t));
+        st = dataTransfirm(HMI_type::I64, dat);
+      } else if (info[0] == "f32"s) {
+        dat.insert(dat.begin(), it, it + std::stoi(info[1]) * sizeof(float));
+        st = dataTransfirm(HMI_type::F32, dat);
+      } else if (info[0] == "f64"s) {
+        dat.insert(dat.begin(), it, it + std::stoi(info[1]) * sizeof(double));
+        st = dataTransfirm(HMI_type::F64, dat);
+      }
+      text += "    :{ "s + st + " }\n";
+    }
+    text += "}\n"s;
+  }
   // clear();
   isDone = false;
   return text;
@@ -291,8 +368,7 @@ void ASADecode::putArray(uint8_t ar_type, uint8_t ar_num) {
   this->pkg_type = PAC_type::AR;
   this->ar_type = ar_type;
   this->ar_num = ar_num;
-  ar_dlen = ar_num * typeSize[ar_type];
-  ar_dat.resize(ar_dlen);
+  ar_dat.resize(ar_num * typeSize[ar_type]);
 }
 
 void ASADecode::putMatrix(uint8_t mt_type, uint8_t mt_numy, uint8_t mt_numx) {
@@ -301,15 +377,14 @@ void ASADecode::putMatrix(uint8_t mt_type, uint8_t mt_numy, uint8_t mt_numx) {
   this->mt_type = mt_type;
   this->mt_numy = mt_numy;
   this->mt_numx = mt_numx;
-  mt_dlen = mt_numy * mt_numx * typeSize[mt_type];
-  mt_dat.resize(mt_dlen);
+  mt_dat.resize(mt_numy * mt_numx * typeSize[mt_type]);
 }
 
 void ASADecode::putStruct(string st_fs) {
   this->pkg_type = PAC_type::ST;
   this->st_fs.insert(this->st_fs.begin(), std::move_iterator(st_fs.begin()),
                      std::move_iterator(st_fs.end()));
-  this->st_fs_len = this->st_fs.size();
+  // this->st_fs_len = this->st_fs.size();
   this->st_dat.resize(UINT16_MAX);
 }
 
@@ -324,25 +399,25 @@ void ASADecode::clear() {
 
   ar_type = 0;
   ar_num = 0;
-  ar_dlen = 0;
+  // ar_dlen = 0;
   ar_dat.clear();
 
   mt_type = 0;
   mt_numy = 0;
   mt_numx = 0;
-  mt_dlen = 0;
+  // mt_dlen = 0;
   mt_dat.clear();
 
-  st_fs_len = 0;
+  // st_fs_len = 0;
   st_fs.clear();
-  st_dlen = 0;
+  // st_dlen = 0;
   st_dat.clear();
 
   // isDone = false;
 }
 
 template <typename T>
-string ASADecode::transfirm(vector<uint8_t> data) {
+string ASABasic::transfirm(vector<uint8_t> data) {
   string o;
   T* ptr = reinterpret_cast<T*>(data.data());
   for (ptr; ptr < reinterpret_cast<T*>(&(*data.end())); ptr++)
@@ -350,7 +425,7 @@ string ASADecode::transfirm(vector<uint8_t> data) {
   return o.substr(0, o.length() - 2);
 }
 
-inline string ASADecode::dataTransfirm(HMI_type type, vector<uint8_t> data) {
+inline string ASABasic::dataTransfirm(HMI_type type, vector<uint8_t> data) {
   if (type == HMI_type::I8)
     return transfirm<int8_t>(data);
   else if (type == HMI_type::I16)
@@ -590,8 +665,11 @@ bool ASAEncode::put(string text) {
   if (pos != string::npos) {
     pkg_type = PAC_type::MT;
     mt_type = getTypeNum(typeStr);
-    std::sscanf(length.substr(pos + 1).c_str(), "%d", &mt_numx);
-    std::sscanf(length.substr(0, pos).c_str(), "%d", &mt_numy);
+    char* d=length.substr(pos + 1).data();
+    mt_numy=strtol(length.substr(0,pos).data(),NULL,10);
+    mt_numx=strtol(length.substr(pos + 1).data(),NULL,10);
+    // std::sscanf(length.substr(pos + 1).data(), "%d", &mt_numx);
+    // std::sscanf(length.substr(0, pos).data(), "%d", &mt_numy);
     uint8_t countY = 0;
     while (std::regex_search(text, matchs, re)) {
       countY++;
@@ -615,8 +693,7 @@ bool ASAEncode::put(string text) {
       st_fs.insert(st_fs.end(), rstring.begin(), rstring.end());
     } else {
       pkg_type = PAC_type::AR;
-    }
-    while (std::regex_search(text, matchs, re)) {
+      while (std::regex_search(text, matchs, re)) {
       ar_type = getTypeNum(rstring.substr(ppos + 1, pos));
       std::sscanf(rstring.substr(rstring.find('_', ppos + 1) + 1, pos).c_str(),
                   "%d", &ar_num);
@@ -629,6 +706,8 @@ bool ASAEncode::put(string text) {
       dat.insert(dat.end(), tmp.begin(), tmp.end());
       text = matchs.suffix();
     }
+    }
+    
   }
   return true;
 }
