@@ -13,6 +13,10 @@ class Window {
   int height, width, startY, startX;
   std::string name;
   int cursor = 0;
+  /** 
+   * string reverse
+  */
+  bool strREV = false;
   std::string str;
   bool showOnly;
   

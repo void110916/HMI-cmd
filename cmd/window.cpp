@@ -73,12 +73,27 @@ void Window::untouch() {
   untouchwin(w);
 }
 
-void Window::clear() { wclear(w); }
+void Window::clear() {
+  str.clear();
+  cursor = 0;
+  strREV = false;
+  wclear(w);
+}
 
 void Window::addChar(char ch) {
-  str += ch;
-  cursor++;
-  waddch(w, ch);
+  str.insert(cursor, 1, ch);  
+  
+  int in=ch;
+  // waddnstr(w,&ch,1);
+  if (strREV) in |= A_REVERSE;
+  if (cursor+1 == str.size()){
+    waddch(w, in);
+    cursor++;
+  } 
+  else{
+    winsch(w, in);
+    keyRight();
+  }
 }
 void Window::addString(std::string str) {
   int y, x;
@@ -108,12 +123,13 @@ void Window::delChar() {  // test needed
   //   wrefresh();
   wdelch(w);
   str.erase(cursor, 1);
+  cursor--;
 }
 
 void Window::backChar() {
   int x, y;
   getyx(w, y, x);
-  if (x < 2) return;
+  if (x < 1) return;
   //   const char space = ' ';
   //   mvwaddnstr(w, y, x - 1, &space, 1);
   //   wmove(w, y, x - 1);
@@ -127,18 +143,23 @@ void Window::backChar() {
 int Window::getch() { return wgetch(w); }
 
 void Window::keyUp() {
-  int y, x;
+  int y, x, s;
   getyx(w, y, x);
+  s=str.size();
   if (y == 0) return;
-  int pp = str.rfind('\n', cursor - 2);
-  if (pp < 0) pp = 0;
   int p = str.rfind('\n', cursor);
-  int col = (p - pp > x) ? x : p - pp;
-  mvwchgat(w, y, col, -1, A_NORMAL, 1, NULL);
+  int pp = str.rfind('\n', p - 1);
+  // if (pp < 0) pp = 0;
+  
+  // int col = (p - pp > x) ? x : p - pp;
+  // mvwchgat(w, y, col, -1, A_NORMAL, 1, NULL);
+  mvwchgat(w, y, 0, -1, A_NORMAL, 1, NULL);
   // rawLine--;
   --y;
-  mvwchgat(w, y, col, -1, A_REVERSE, 1, NULL);
-  cursor = pp;
+  // mvwchgat(w, y, col, -1, A_REVERSE, 1, NULL);
+  mvwchgat(w, y, 0, -1, A_REVERSE, 1, NULL);
+  strREV = true;
+  cursor = pp < p ? pp+1 : p;
 }
 
 void Window::keyDown() {
@@ -148,16 +169,17 @@ void Window::keyDown() {
   if (y == height - 3) return;
   // int pp = str.find('\n', cursor - 2);
   int p = str.find('\n', cursor);
+  if (p<0) return;
   int n = str.find('\n', p + 1);
   if (n < 0) n = str.size();
-  auto c = str[p + 1];
-  int num = str.size();
-  if (p + 1 >= str.size()) p = n = str.size();
+  // auto c = str[p + 1];
+  // int num = str.size();
   int col = (n - p > x) ? x : n - p;
   mvwchgat(w, y, col, -1, A_NORMAL, 1, NULL);
   // rawLine++;
   y++;
   mvwchgat(w, y, col, -1, A_REVERSE, 1, NULL);
+  strREV = true;
   cursor = p + col + 1;  // maybe +1?
 }
 
@@ -194,10 +216,11 @@ void Window::printCurStr(std::string str) {
   // TODO: unreset cursor and this->str
   int y, x;
   getyx(w, y, x);
-  std::string s = std::format("({:>3}, {:>3})\n", y, x);
-  wattron(w, COLOR_PAIR(2));
-  mvwaddnstr(w, 1, 0, s.data(), s.size());
-  wattroff(w, COLOR_PAIR(2));
+  std::string s = std::format("({:>3}, {:>3})", y, x);
+  wattron(wbox, COLOR_PAIR(2));
+  mvwaddnstr(wbox, startX + width - 11, 0, s.data(), s.size());
+  wattroff(wbox, COLOR_PAIR(2));
+  ::wrefresh(wbox);
 }
 
 int Window::getline() { return getcury(w); }
