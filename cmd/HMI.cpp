@@ -27,7 +27,7 @@ std::string Object::getAllVisible() {
   std::string str;
   for (auto obj : objs) {
     // if (obj->type == TYPE::FILE) continue;
-    str += obj->getVisible() + "\n";
+    str += obj->getVisible() ;
   }
   return str;
 }
@@ -61,7 +61,7 @@ std::string Object::getName() const { return name; }
 std::string Object::getFormat() const { return format; }
 std::string Object::getDetail() const { return detail; }
 
-bool Object::change(std::string str) {
+bool Object::change(std::string str) {  // TODO: text check
   // auto things = ASAEncode::split(str);
   // if (things.empty()) return false;
   // int pos = things[0].str.find(':');
