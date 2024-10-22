@@ -22,6 +22,8 @@ Window ltwin, lbwin, rtwin, rbwin, *focus;
 // BufferedAsyncSerial serial;
 SerialPort serial;
 
+bool putSync = false;
+
 int main(int argc, char *argv[]) {
   cxxopts::Options opt("info");
 
@@ -82,7 +84,7 @@ int main(int argc, char *argv[]) {
   // ======================
 
   // string lstr, rstr;
-  bool putSync = false;
+
   Object::setCol(COLS / 2 - 2);
   static bool firstPage = true;
   while (1) {
@@ -158,10 +160,9 @@ int main(int argc, char *argv[]) {
               }
             } else {  // second page event
               if (focus->getline() == 0) {
-                // TODO: save edit obj
                 str = focus->popString();
                 if (!o->change(str)) {
-                  ltwin.addString(">> fail change " + o->getName());
+                  ltwin.addString(">> fail change " + o->getName()+"\n");
                 }
                 // jump back
                 focus->clear();
@@ -256,18 +257,28 @@ int cmd_decode(string str) {
   for (auto s = strs.begin(); s != strs.end(); s++) {
     int a = CmdArg[*s];
     Object *o;
+    string str;
     switch (a) {
       case 1: {  // mode
         s++;
         if (ModeArg[*s] == 4) {  // files
-        } else {                 // array, matrix, struct
-          o = Object::getObj(*(s + 1));
+          // TODO
+        } else {  // array, matrix, struct
+          str = *(s + 1);
+          o = Object::getObj(str);
           if (o != nullptr && serial.isOpen()) {
             ASAEncoder::ASAEncode enc;
-            string str = o->getFormat()+ ":" +o->getDetail(); 
-            enc.put(str);
-            auto buf=enc.get();
-            serial.writeAsync(buf.data(),buf.size());
+            str = o->getFormat() + ":" + o->getDetail();
+            if (enc.put(str)) {
+              auto buf = enc.get();
+              if (putSync) {
+                str = "~ACK\n";
+                serial.writeAsync(str);
+                ltwin.addString(str);
+                putSync = false;
+              }
+              serial.writeAsync(buf.data(), buf.size());
+            }
           }
         }
         break;
