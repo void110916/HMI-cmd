@@ -14,6 +14,7 @@ class Object {
 
  public:
   Object(TYPE type, std::string str);
+  Object(std::string name, std::string detail);
   ~Object();
   static std::string getAllVisible();
   static Object *getObj(int index);
@@ -23,6 +24,7 @@ class Object {
   std::string getFormat() const;
   std::string getDetail() const;
   std::string getVisible();
+  std::string getStr();
   bool change(std::string str);
   void renName(std::string newTitle);
   void renDetail(std::string newDetail);

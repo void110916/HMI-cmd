@@ -16,6 +16,14 @@ Object::Object(TYPE type, std::string str) : type(type) {
   objs.push_back(new Object(*this));
 }
 
+Object::Object(std::string name, std::string detail){
+  name=name;
+  int pos = detail.find('\n');
+  format = detail.substr(0, pos - 1);
+  detail = detail.substr(pos + 1);
+  objs.push_back(new Object(*this));
+}
+
 Object::~Object() {
   auto find = std::find(objs.begin(), objs.end(), this);
   if (find != objs.end()) {
@@ -29,6 +37,12 @@ std::string Object::getAllVisible() {
     // if (obj->type == TYPE::FILE) continue;
     str += obj->getVisible() ;
   }
+  return str;
+}
+
+std::string Object::getStr(){
+  std::string str;
+  str=getName()+"\n"+getDetail();
   return str;
 }
 

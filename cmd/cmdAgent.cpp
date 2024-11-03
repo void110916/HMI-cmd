@@ -153,16 +153,16 @@ int main(int argc, char *argv[]) {
               if (o) {
                 focus->clear();
                 focus->addString(o->getName() + "\n");
-                focus->printCurStr();
                 // focus->addString( + "\n");
                 focus->addString(o->getDetail());
+                focus->printCurStr();
                 focus->waitUpdate();
               }
             } else {  // second page event
               if (focus->getline() == 0) {
                 str = focus->popString();
                 if (!o->change(str)) {
-                  ltwin.addString(">> fail change " + o->getName()+"\n");
+                  ltwin.addString(">> fail change " + o->getName() + "\n");
                 }
                 // jump back
                 focus->clear();
@@ -190,23 +190,27 @@ int main(int argc, char *argv[]) {
         case KEY_DOWN:
           if (focus == &rtwin) {
             focus->keyDown();
+            if (!firstPage) focus->printCurStr();
             focus->waitUpdate();
           }
           break;
         case KEY_UP:
           if (focus == &rtwin) {
             focus->keyUp();
+            if (!firstPage) focus->printCurStr();
             focus->waitUpdate();
           }
           break;
         case KEY_LEFT:
           if (focus == &rtwin && firstPage) break;
           focus->keyLeft();
+          focus->printCurStr();
           focus->waitUpdate();
           break;
         case KEY_RIGHT:
           if (focus == &rtwin && firstPage) break;
           focus->keyRight();
+          focus->printCurStr();
           focus->waitUpdate();
           break;
         case '\t':
@@ -219,6 +223,7 @@ int main(int argc, char *argv[]) {
           char c;
           c = key & 0xff;
           focus->addChar(c);
+          if (focus == &rtwin && !firstPage) focus->printCurStr();
           focus->waitUpdate();
           break;
       }
@@ -258,8 +263,9 @@ int cmd_decode(string str) {
     int a = CmdArg[*s];
     Object *o;
     string str;
+    fstream f;
     switch (a) {
-      case 1: {  // mode
+      case 1:  // mode
         s++;
         if (ModeArg[*s] == 4) {  // files
           // TODO
@@ -282,7 +288,6 @@ int cmd_decode(string str) {
           }
         }
         break;
-      }
       case 2: {  // save
         s++;
         if (s == strs.end()) {  // save all objs

@@ -81,28 +81,29 @@ void Window::clear() {
 }
 
 void Window::addChar(char ch) {
-  str.insert(cursor, 1, ch);  
-  
-  int in=ch;
+  str.insert(cursor, 1, ch);
+
+  int in = ch;
   // waddnstr(w,&ch,1);
   if (strREV) in |= A_REVERSE;
-  if (cursor+1 == str.size()){
+  if (cursor + 1 == str.size()) {
     waddch(w, in);
     cursor++;
-  } 
-  else{
+  } else {
     winsch(w, in);
     keyRight();
   }
 }
 void Window::addString(std::string str) {
-  int y, x;
-  getyx(w, y, x);
+  // int y, x;
+  // getyx(w, y, x);
 
   // rawLine += std::ranges::count(str, '\n');
+  int pp, p, size;
+  size = str.size();
   this->str.insert(cursor, str);
-  cursor += str.size();
-  waddnstr(w, str.data(), str.size());
+  cursor += size;
+  waddnstr(w, str.data(), size);
 }
 
 std::string Window::popString() {
@@ -145,71 +146,76 @@ int Window::getch() { return wgetch(w); }
 void Window::keyUp() {
   int y, x, s;
   getyx(w, y, x);
-  s=str.size();
-  if (y == 0) return;
+  s = str.size();
+  if (y == 0) return;  // TODO: scroll up
   int p = str.rfind('\n', cursor);
   int pp = str.rfind('\n', p - 1);
-  // if (pp < 0) pp = 0;
-  
-  // int col = (p - pp > x) ? x : p - pp;
-  // mvwchgat(w, y, col, -1, A_NORMAL, 1, NULL);
+  int preLen = p - pp;
+
+  int col = (preLen > x) ? x : preLen - 1;
+  cursor = pp + col + 1;
   mvwchgat(w, y, 0, -1, A_NORMAL, 1, NULL);
-  // rawLine--;
-  --y;
-  // mvwchgat(w, y, col, -1, A_REVERSE, 1, NULL);
-  mvwchgat(w, y, 0, -1, A_REVERSE, 1, NULL);
+  mvwchgat(w, --y, 0, -1, A_REVERSE, 1, NULL);
+  wmove(w, y, col);
   strREV = true;
-  cursor = pp < p ? pp+1 : p;
 }
 
 void Window::keyDown() {
   // cursor unstopable
   int y, x;
   getyx(w, y, x);
-  if (y == height - 3) return;
-  // int pp = str.find('\n', cursor - 2);
+  if (y == height - 3) return;  // TODO: scroll down
   int p = str.find('\n', cursor);
-  if (p<0) return;
+  if (p < 0) return;
   int n = str.find('\n', p + 1);
-  if (n < 0) n = str.size();
-  // auto c = str[p + 1];
-  // int num = str.size();
-  int col = (n - p > x) ? x : n - p;
-  mvwchgat(w, y, col, -1, A_NORMAL, 1, NULL);
-  // rawLine++;
-  y++;
-  mvwchgat(w, y, col, -1, A_REVERSE, 1, NULL);
+  if (n < 0) n = str.size() - 1;
+  int curLen = n - p;
+
+  int col = (curLen > x) ? x : curLen - 1;  // '\n'
+  cursor = p + col + 1;
+  mvwchgat(w, y, 0, -1, A_NORMAL, 1, NULL);
+  mvwchgat(w, ++y, 0, -1, A_REVERSE, 1, NULL);
+  wmove(w, y, col);
   strREV = true;
-  cursor = p + col + 1;  // maybe +1?
 }
 
 void Window::keyLeft() {
-  int x, y;
+  int x, y, preLen;
+  if (cursor == 0) return;
   getyx(w, y, x);
-  if (x == 0) {
-    if (y > 1) {
-      wmove(w, y - 1, x);
-      cursor--;
-    }
+
+  if (str[--cursor] != '\n') {
+    wmove(w, y, x - 1);
+    auto c = str[cursor];
     return;
   }
-  wmove(w, y, x - 1);
-  cursor--;
+  int p = str.rfind('\n', cursor);
+  int pp = str.rfind('\n', p - 1);
+  preLen = p - pp;
+  if (strREV) {
+    mvwchgat(w, y, 0, -1, A_NORMAL, 1, NULL);
+    mvwchgat(w, --y, 0, -1, A_REVERSE, 1, NULL);
+  }
+  wmove(w, y, preLen);
+  auto cc = str[cursor];
 }
 
 void Window::keyRight() {
   int x, y;
+  if (cursor >= str.size()) return;
   getyx(w, y, x);
-  auto size = str.size();
-  if (cursor == size) {
-    if (y < height - 3) {
-      wmove(w, y + 1, 0);
-      cursor++;
-    }
+  // int p = str.find('\n', cursor);
+  if (str[cursor++] != '\n') {
+    wmove(w, y, x + 1);
+    auto c = str[cursor];
     return;
   }
-  wmove(w, y, x + 1);
-  cursor++;
+  if (strREV) {
+    mvwchgat(w, y, 0, -1, A_NORMAL, 1, NULL);
+    mvwchgat(w, ++y, 0, -1, A_REVERSE, 1, NULL);
+  }
+  wmove(w, y, 0);
+  auto c = str[cursor];
 }
 
 void Window::printCurStr(std::string str) {
@@ -218,9 +224,10 @@ void Window::printCurStr(std::string str) {
   getyx(w, y, x);
   std::string s = std::format("({:>3}, {:>3})", y, x);
   wattron(wbox, COLOR_PAIR(2));
-  mvwaddnstr(wbox, startX + width - 11, 0, s.data(), s.size());
+  mvwaddnstr(wbox, 0, width - 11, s.data(), s.size());
+  // mvwprintw(wbox, 0, width - 11, s.c_str());
   wattroff(wbox, COLOR_PAIR(2));
-  ::wrefresh(wbox);
+  // ::wrefresh(wbox);
 }
 
 int Window::getline() { return getcury(w); }
