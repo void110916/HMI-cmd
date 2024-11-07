@@ -8,7 +8,7 @@ class Object {
   static std::vector<Object *> objs;
   static int col;
   TYPE type;
-  std::string name;
+  std::string _name;
   std::string format;
   std::string detail;
 
@@ -18,7 +18,7 @@ class Object {
   ~Object();
   static std::string getAllVisible();
   static Object *getObj(int index);
-  static Object *getObj(std::string str);
+  static Object *getObj(std::string name);
   static void setCol(int col);
   std::string getName() const;
   std::string getFormat() const;

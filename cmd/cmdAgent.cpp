@@ -147,7 +147,7 @@ int main(int argc, char *argv[]) {
           // ====================
           // right top event========
           else if (focus == &rtwin) {
-            if (firstPage) {  // first page event
+            if (firstPage) {  // 1st page -> 2ed page
               idx = focus->getline();
               o = Object::getObj(idx);
               if (o) {
@@ -157,19 +157,22 @@ int main(int argc, char *argv[]) {
                 focus->addString(o->getDetail());
                 focus->printCurStr();
                 focus->waitUpdate();
-              }
-            } else {  // second page event
-              if (focus->getline() == 0) {
+              } else
+                break;
+            } else {
+              if (focus->getline() != 0) {
+                focus->newLine();
+                break;
+              } else { // 2ed page -> 1st page
                 str = focus->popString();
                 if (!o->change(str)) {
                   ltwin.addString(">> fail change " + o->getName() + "\n");
                 }
                 // jump back
                 focus->clear();
+                focus->refreshBox();
                 focus->addString(Object::getAllVisible());
                 focus->waitUpdate();
-              } else {
-                focus->addChar('\n');
               }
             }
             focus->waitUpdate();
@@ -245,6 +248,7 @@ int main(int argc, char *argv[]) {
 
 #include <boost/algorithm/string/classification.hpp>
 #include <boost/algorithm/string/split.hpp>
+#include <filesystem>
 #include <fstream>
 int cmd_decode(string str) {
   map<string, int> CmdArg{{"-m", 1},     {"--mode", 1}, {"-s", 2},
@@ -288,19 +292,42 @@ int cmd_decode(string str) {
           }
         }
         break;
-      case 2: {  // save
-        s++;
-        if (s == strs.end()) {  // save all objs
+      case 2:  // save
+        str = *++s;
 
+        // vector<string> buffer;
+        f.open("HMI_workspace.txt", ios::out);
+        if (s == strs.end()) {  // save all objs
+          str = Object::getAllVisible();
+          f << str;
         } else {  // save single
+          do {
+            Object *o = Object::getObj(*s++);
+            if (o) {
+              str = o->getStr();
+              f << str;
+            }
+          } while (s == strs.end());
         }
-        fstream f;
-        f.open(*s, ios::out);
-        f << *s;
+        f.close();
         break;
-      }
       case 3:  // load
-        break;
+        // Object o();
+        {
+          str = "HMI_workspace.txt";
+          if (filesystem::exists(str)) {
+            ltwin.addString(">> no HMI_workspace exists!\n");
+            break;
+          }
+          s++;
+          f.open(str, ios::in);
+          do {
+            string name, detail;
+            f >> name >> detail;
+            Object o(name, detail);
+          } while (s != strs.end());
+          break;
+        }
       default: {
         break;
       }

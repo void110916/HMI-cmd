@@ -9,7 +9,7 @@ int Object::col;
 std::vector<Object *> Object::objs;
 
 Object::Object(TYPE type, std::string str) : type(type) {
-  name = ASABasic::pacTypeStr(type) + std::to_string(objs.size());
+  _name = ASABasic::pacTypeStr(type) + std::to_string(objs.size());
   int pos = str.find('\n');
   format = str.substr(0, pos - 1);
   detail = str.substr(pos + 1);
@@ -17,7 +17,7 @@ Object::Object(TYPE type, std::string str) : type(type) {
 }
 
 Object::Object(std::string name, std::string detail){
-  name=name;
+  _name=name;
   int pos = detail.find('\n');
   format = detail.substr(0, pos - 1);
   detail = detail.substr(pos + 1);
@@ -53,10 +53,10 @@ Object *Object::getObj(int index) {
     return nullptr;
 }
 
-Object *Object::getObj(string std) {
-  // auto f=[&](const auto& o){return std==o->getName();};
-  // auto o= std::find_if(objs.begin(),objs.end(),f);
-  vector<Object *>::iterator o = objs.begin();
+Object *Object::getObj(string name) {
+  auto f=[&](const auto& o){return name==o->getName();};
+  auto o= std::find_if(objs.begin(),objs.end(),f);
+  // vector<Object *>::iterator o = objs.begin();
   if (o != objs.end())
     return *o;
   else
@@ -67,11 +67,11 @@ void Object::setCol(int col) { Object::col = col; }
 
 std::string Object::getVisible() {
   std::string str =
-      std::format("{0:^5}|{1:^{3}}|{2:^{3}}\n", ASADecode::pacTypeStr(type), name,
+      std::format("{0:^5}|{1:^{3}}|{2:^{3}}\n", ASADecode::pacTypeStr(type), _name,
                   format, col / 2 - 5);
   return str;
 }
-std::string Object::getName() const { return name; }
+std::string Object::getName() const { return _name; }
 std::string Object::getFormat() const { return format; }
 std::string Object::getDetail() const { return detail; }
 
@@ -92,5 +92,5 @@ bool Object::change(std::string str) {  // TODO: text check
   return true;
 }
 
-void Object::renName(std::string newName) { name = newName; }
+void Object::renName(std::string newName) { _name = newName; }
 void Object::renDetail(std::string newDetail) { detail = newDetail; }

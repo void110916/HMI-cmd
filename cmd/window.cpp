@@ -63,6 +63,11 @@ void Window::resize(int height, int width) {
   }
 }
 
+void Window::refreshBox() {
+  box(wbox, 0, 0);
+  if (!name.empty()) mvwprintw(wbox, 0, 1, name.c_str());
+}
+
 void Window::touch() {
   touchwin(wbox);
   touchwin(w);
@@ -80,7 +85,7 @@ void Window::clear() {
   wclear(w);
 }
 
-void Window::addChar(char ch) {
+void Window::addChar(char ch) {  // TODO: newline show error
   str.insert(cursor, 1, ch);
 
   int in = ch;
@@ -94,6 +99,19 @@ void Window::addChar(char ch) {
     keyRight();
   }
 }
+
+void Window::newLine() {
+  str.insert(cursor, 1, '\n');
+  int y = getcury(w);
+  auto c=str[cursor];
+  // winstr(w,buffer.data());
+  wclrtoeol(w);
+  waddnstr(w, str.data() + cursor, str.size() - cursor);
+  mvwchgat(w, y, 0, -1, A_NORMAL, 1, NULL);
+  mvwchgat(w, ++y, 0, -1, strREV?A_REVERSE:A_NORMAL, 1, NULL);
+  cursor++;
+}
+
 void Window::addString(std::string str) {
   // int y, x;
   // getyx(w, y, x);
