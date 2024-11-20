@@ -1,93 +1,6 @@
-#include <array>
-#include <cstdint>
-#include <optional>
-#include <regex>
-#include <vector>
+#include "asaFile.h"
+#include "asaFormat.h"
 namespace ASAEncoder {
-using std::array;
-using std::optional;
-using std::regex;
-using std::smatch;
-using std::ssub_match;
-using std::string;
-using std::vector;
-using namespace std::string_literals;
-enum HMI_type : uint8_t {
-  I8 = 0,
-  I16 = 1,
-  I32 = 2,
-  I64 = 3,
-  UI8 = 4,
-  UI16 = 5,
-  UI32 = 6,
-  UI64 = 7,
-  F32 = 8,
-  F64 = 9
-};
-
-enum PAC_type : uint8_t { AR = 1, MT = 2, ST = 3 };
-
-enum class STATE : uint16_t {
-  HEADER = 0,
-  pkg_len = 1,
-  switch_type = 2,
-  chksum = 3,
-
-  ar_type = 10,
-  ar_num = 11,
-  ar_dat_len = 12,
-  ar_dat = 13,
-
-  mt_type = 20,
-  mt_numy = 21,
-  mt_numx = 22,
-  mt_dat_len = 23,
-  mt_dat = 24,
-
-  st_fs_len = 30,
-  st_fs = 31,
-  st_dat_len = 32,
-  st_dat = 33
-};
-
-inline STATE& operator++(STATE& f, int) {
-  switch (f) {
-    case STATE::HEADER:
-      return f = STATE::pkg_len;
-    case STATE::pkg_len:
-      return f = STATE::switch_type;
-    case STATE::ar_type:
-      return f = STATE::ar_num;
-    case STATE::ar_num:
-      return f = STATE::ar_dat_len;
-    case STATE::ar_dat_len:
-      return f = STATE::ar_dat;
-    case STATE::ar_dat:
-      return f = STATE::chksum;
-    case STATE::mt_type:
-      return f = STATE::mt_numy;
-    case STATE::mt_numy:
-      return f = STATE::mt_numx;
-    case STATE::mt_numx:
-      return f = STATE::mt_dat_len;
-    case STATE::mt_dat_len:
-      return f = STATE::mt_dat;
-    case STATE::mt_dat:
-      return f = STATE::chksum;
-    case STATE::st_fs_len:
-      return f = STATE::st_fs;
-    case STATE::st_fs:
-      return f = STATE::st_dat_len;
-    case STATE::st_dat_len:
-      return f = STATE::st_dat;
-    case STATE::st_dat:
-      return f = STATE::chksum;
-    case STATE::chksum:
-      return f = STATE::HEADER;
-    default:
-      return f;
-  }
-}
 
 struct HMI_format {
  public:
@@ -96,58 +9,30 @@ struct HMI_format {
   HMI_format(PAC_type type, ssub_match format) : type(type), format(format) {}
 };
 
-/**
- * @brief from serial port to PC
- *
- */
-class ASADecode {
- private:
-  // member
-  STATE decodeState = STATE::HEADER;
-  uint16_t count = 0;
-  uint16_t paclen = 0;
-  uint8_t chksum = 0;
+class ASABasic {
+ protected:
   uint8_t pkg_type = 0;
 
   uint8_t ar_type = 0;
   uint8_t ar_num = 0;
-  uint16_t ar_dlen = 0;
   vector<uint8_t> ar_dat;
 
   uint8_t mt_type = 0;
   uint8_t mt_numy = 0;
   uint8_t mt_numx = 0;
-  uint16_t mt_dlen = 0;
   vector<uint8_t> mt_dat;
 
-  uint8_t st_fs_len = 0;
   vector<uint8_t> st_fs;
-  uint16_t st_dlen = 0;
   vector<uint8_t> st_dat;
 
-  // function
-  void clear();
   template <typename T>
   string transfirm(vector<uint8_t> data);
   inline string dataTransfirm(HMI_type type, vector<uint8_t> data);
 
  public:
-  // member
-  bool isProcessing = false;
-  bool isDone = false;
-
-  // function
-  ASADecode();
-  ~ASADecode();
-
-  bool put(uint8_t buff);
-  string get();
-  void putArray(uint8_t ar_type, uint8_t ar_num);
-  void putMatrix(uint8_t mt_type, uint8_t mt_numy, uint8_t mt_numx);
-  void putStruct(string st_fs);
-  static bool isSync(char buff);
-  int getType();
-  static inline string getTypeStr(int typeNum) {
+  ASABasic();
+  virtual ~ASABasic();
+  static inline string type2str(int typeNum) {
     if (typeNum == 0)
       return "i8"s;
     else if (typeNum == 1)
@@ -173,7 +58,7 @@ class ASADecode {
     else
       return ""s;
   }
-  static inline string getPacTypeStr(int typeNum) {
+  static inline string pacTypeStr(int typeNum) {
     if (typeNum == 1)
       return "AR"s;
     else if (typeNum == 2)
@@ -183,13 +68,56 @@ class ASADecode {
     else
       return ""s;
   }
+  int getType();
+  string getFormat();
+  string detailStr();
+};
+/**
+ * @brief from serial port to PC
+ *
+ */
+class ASADecode : public ASABasic {
+ private:
+  // member
+  STATE decodeState = STATE::HEADER;
+  uint16_t count = 0;
+  uint16_t paclen = 0;
+  uint8_t chksum = 0;
+  ASAFileDec fdec;
+  // uint16_t ar_dlen = 0;
+
+  // uint16_t mt_dlen = 0;
+
+  // uint8_t st_fs_len = 0;
+  // uint16_t st_dlen = 0;
+
+  // function
+  void clear();
+
+ public:
+  // member
+  static bool sync;
+  bool isProcessing = false;
+  bool isDone = false;
+  bool isFile = false;
+  bool retry = false;
+  // function
+  ASADecode();
+  ~ASADecode();
+
+  bool put(uint8_t buff);
+  string get();
+  void putArray(uint8_t ar_type, uint8_t ar_num);
+  void putMatrix(uint8_t mt_type, uint8_t mt_numy, uint8_t mt_numx);
+  void putStruct(string st_fs);
+  static bool isSync(char buff);
 };
 
 /**
  * @brief from PC to serial port
  *
  */
-class ASAEncode {
+class ASAEncode : public ASABasic {
   struct SplitStr {
     string str;
     int64_t lastIndex;
@@ -198,22 +126,23 @@ class ASAEncode {
  private:
   // member
   bool isError = false;
-
+  bool isFile = false;
+  ASAFileEnc fEnc;
   static constexpr array<uint8_t, 3> _HEADER = {0xac, 0xac, 0xac};
-  PAC_type pkg_type;
+  // PAC_type pkg_type;
 
-  uint8_t ar_type = 0;
-  uint8_t ar_num = 0;
-  vector<uint8_t> ar_dat;
+  // uint8_t ar_type = 0;
+  // uint8_t ar_num = 0;
+  // vector<uint8_t> ar_dat;
 
-  uint8_t mt_type = 0;
-  uint8_t mt_numy = 0;
-  uint8_t mt_numx = 0;
-  vector<uint8_t> mt_dat;
+  // uint8_t mt_type = 0;
+  // uint8_t mt_numy = 0;
+  // uint8_t mt_numx = 0;
+  // vector<uint8_t> mt_dat;
 
-  // uint16_t st_fs_len = 0;
-  vector<uint8_t> st_fs;
-  vector<uint8_t> st_dat;
+  // // uint16_t st_fs_len = 0;
+  // vector<uint8_t> st_fs;
+  // vector<uint8_t> st_dat;
 
   vector<uint8_t> dat;
   regex
@@ -236,6 +165,7 @@ class ASAEncode {
   vector<uint8_t> encodeAr2Pac();
   vector<uint8_t> encodeMt2Pac();
   vector<uint8_t> encodeSt2Pac();
+  vector<uint8_t> encodeF2Pac(bool next = true);
 
  public:
   // member
@@ -247,7 +177,8 @@ class ASAEncode {
   static vector<SplitStr> split(string text);
   //   bool put(HMI_format format);
   bool put(string text);
-  vector<uint8_t> get();
+  bool putFile(string fileName);
+  vector<uint8_t> get(bool next = true);
   void clear();
 };
 

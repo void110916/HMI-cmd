@@ -38,6 +38,7 @@ add_subdirectory(cxxopts-3.2.0)
 add_library(asaCoder 
     asaCoder/asaEncoder.cpp
     asaCoder/serialPort.cpp
+    asaCoder/asaFile.cpp
     # cmd/HMI.cpp
     )
 
