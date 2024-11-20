@@ -98,7 +98,7 @@ struct HMI_format {
 
 /**
  * @brief from serial port to PC
- * 
+ *
  */
 class ASADecode {
  private:
@@ -130,7 +130,6 @@ class ASADecode {
   template <typename T>
   string transfirm(vector<uint8_t> data);
   inline string dataTransfirm(HMI_type type, vector<uint8_t> data);
-  
 
  public:
   // member
@@ -143,45 +142,55 @@ class ASADecode {
 
   bool put(uint8_t buff);
   string get();
-  void putArray(uint8_t ar_type,uint8_t ar_num);
-  void putMatrix(uint8_t mt_type,uint8_t mt_numy,uint8_t mt_numx);
+  void putArray(uint8_t ar_type, uint8_t ar_num);
+  void putMatrix(uint8_t mt_type, uint8_t mt_numy, uint8_t mt_numx);
   void putStruct(string st_fs);
   static bool isSync(char buff);
-  inline string getTypeStr(int typeNum)
-  {
-  if (typeNum == 0)
-    return "i8"s;
-  else if (typeNum == 1)
-    return "i16"s;
-  else if (typeNum == 2)
-    return "i32"s;
-  else if (typeNum == 3)
-    return "i64"s;
-  else if (typeNum == 4)
-    return "ui8"s;
-  else if (typeNum == 5)
-    return "ui16"s;
-  else if (typeNum == 6)
-    return "ui32"s;
-  else if (typeNum == 7)
-    return "ui64"s;
-  else if (typeNum == 8)
-    return "f32"s;
-  else if (typeNum == 9)
-    return "f64"s;
-  else if (typeNum == 15)
-    return "s"s;
-  else
-    return ""s;
-}
+  int getType();
+  static inline string getTypeStr(int typeNum) {
+    if (typeNum == 0)
+      return "i8"s;
+    else if (typeNum == 1)
+      return "i16"s;
+    else if (typeNum == 2)
+      return "i32"s;
+    else if (typeNum == 3)
+      return "i64"s;
+    else if (typeNum == 4)
+      return "ui8"s;
+    else if (typeNum == 5)
+      return "ui16"s;
+    else if (typeNum == 6)
+      return "ui32"s;
+    else if (typeNum == 7)
+      return "ui64"s;
+    else if (typeNum == 8)
+      return "f32"s;
+    else if (typeNum == 9)
+      return "f64"s;
+    else if (typeNum == 15)
+      return "s"s;
+    else
+      return ""s;
+  }
+  static inline string getPacTypeStr(int typeNum) {
+    if (typeNum == 1)
+      return "AR"s;
+    else if (typeNum == 2)
+      return "MT"s;
+    else if (typeNum == 3)
+      return "ST"s;
+    else
+      return ""s;
+  }
 };
 
 /**
  * @brief from PC to serial port
- * 
+ *
  */
 class ASAEncode {
-  struct SplitStr{
+  struct SplitStr {
     string str;
     int64_t lastIndex;
   };
@@ -229,7 +238,6 @@ class ASAEncode {
   vector<uint8_t> encodeSt2Pac();
 
  public:
- 
   // member
   // function
   ASAEncode();
@@ -241,8 +249,6 @@ class ASAEncode {
   bool put(string text);
   vector<uint8_t> get();
   void clear();
-
-  
 };
 
 }  // namespace ASAEncoder

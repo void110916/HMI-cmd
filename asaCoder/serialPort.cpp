@@ -97,7 +97,7 @@ void SerialPort::asyncWriteHandler(const boost::system::error_code& error,
 int16_t SerialPort::readByte() {
   std::unique_lock<std::mutex> lk(readBufferMtx);
 
-  if (!read_buffer_.size()) return -1;
+  if (!read_buffer_.size()) return INT16_MIN;
 
   int res = read_buffer_[0];
   read_buffer_.erase(read_buffer_.begin());
@@ -108,7 +108,7 @@ std::vector<char> SerialPort::readBuffer(size_t len) {
   std::vector<char> res;
   while (res.size() < len) {
     const int16_t b = readByte();
-    if (b > -1) {
+    if (b > INT16_MIN) {
       res.push_back((uint8_t)b);
     }
   }
@@ -128,7 +128,7 @@ std::vector<char> SerialPort::readBufferTimeout(size_t len) {
       timeout = true;
     } else {
       const int16_t b = readByte();
-      if (b > -1) {
+      if (b > INT16_MIN) {
         res.push_back((char)b);
       }
     }

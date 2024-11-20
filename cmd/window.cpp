@@ -1,5 +1,7 @@
 #include "window.h"
 
+#include <algorithm>
+#include <format>
 std::vector<Window *> Window::windows;
 
 Window::~Window() {}
@@ -57,7 +59,7 @@ void Window::resize(int height, int width) {
 
   if (!name.empty()) {
     mvwprintw(wbox, 0, 1, name.c_str());
-    wsetscrreg(w, 0, height - 2);
+    wsetscrreg(w, 0, height - 3);
   }
 }
 
@@ -71,6 +73,8 @@ void Window::untouch() {
   untouchwin(w);
 }
 
+void Window::clear() { wclear(w); }
+
 void Window::addChar(char ch) {
   str += ch;
   cursor++;
@@ -79,27 +83,17 @@ void Window::addChar(char ch) {
 void Window::addString(std::string str) {
   int y, x;
   getyx(w, y, x);
-  // if (keyWin) {
-  if (cursor != 0) {
-    this->str += '\n';
-    waddch(w,'\n');
-    cursor++;
-  }
 
-  // }
+  // rawLine += std::ranges::count(str, '\n');
   this->str.insert(cursor, str);
   cursor += str.size();
   waddnstr(w, str.data(), str.size());
-  // wprintw(w, "%s\n", str.c_str());
-  
-  // if (y < height-2-1)
-  // waddch(w, '\n');
 }
 
 std::string Window::popString() {
   auto string = str;
   str.clear();
-  werase(w);
+  werase(w);  // TODO: change to clear()?
   wmove(w, 0, 0);
   return string;
 }
@@ -132,8 +126,41 @@ void Window::backChar() {
 
 int Window::getch() { return wgetch(w); }
 
-void Window::keyUp() {}
-void Window::keyDown() {}
+void Window::keyUp() {
+  int y, x;
+  getyx(w, y, x);
+  if (y == 0) return;
+  int pp = str.rfind('\n', cursor - 2);
+  if (pp < 0) pp = 0;
+  int p = str.rfind('\n', cursor);
+  int col = (p - pp > x) ? x : p - pp;
+  mvwchgat(w, y, col, -1, A_NORMAL, 1, NULL);
+  // rawLine--;
+  --y;
+  mvwchgat(w, y, col, -1, A_REVERSE, 1, NULL);
+  cursor = pp;
+}
+
+void Window::keyDown() {
+  // cursor unstopable
+  int y, x;
+  getyx(w, y, x);
+  if (y == height - 3) return;
+  // int pp = str.find('\n', cursor - 2);
+  int p = str.find('\n', cursor);
+  int n = str.find('\n', p + 1);
+  if (n < 0) n = str.size();
+  auto c = str[p + 1];
+  int num = str.size();
+  if (p + 1 >= str.size()) p = n = str.size();
+  int col = (n - p > x) ? x : n - p;
+  mvwchgat(w, y, col, -1, A_NORMAL, 1, NULL);
+  // rawLine++;
+  y++;
+  mvwchgat(w, y, col, -1, A_REVERSE, 1, NULL);
+  cursor = p + col + 1;  // maybe +1?
+}
+
 void Window::keyLeft() {
   int x, y;
   getyx(w, y, x);
@@ -147,6 +174,7 @@ void Window::keyLeft() {
   wmove(w, y, x - 1);
   cursor--;
 }
+
 void Window::keyRight() {
   int x, y;
   getyx(w, y, x);
@@ -161,3 +189,15 @@ void Window::keyRight() {
   wmove(w, y, x + 1);
   cursor++;
 }
+
+void Window::printCurStr(std::string str) {
+  // TODO: unreset cursor and this->str
+  int y, x;
+  getyx(w, y, x);
+  std::string s = std::format("({:>3}, {:>3})\n", y, x);
+  wattron(w, COLOR_PAIR(2));
+  mvwaddnstr(w, 1, 0, s.data(), s.size());
+  wattroff(w, COLOR_PAIR(2));
+}
+
+int Window::getline() { return getcury(w); }

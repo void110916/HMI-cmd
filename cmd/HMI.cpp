@@ -1,55 +1,50 @@
 #include "HMI.h"
 
-using ASAEncoder::ASADecode;
-using ASAEncoder::ASAEncode;
+#include <format>
 
-uint8_t HMI_put_array(TimeoutSerial& serial, std::string& str) {
-  ASAEncode encode;
+#include "asaEncoder.h"
+using namespace ASAEncoder;
+int Object::col;
+std::vector<Object *> Object::objs;
 
-  // ...
-  encode.put(str);
-  auto pac = encode.get();
-  serial.write(reinterpret_cast<char*>(pac.data()), pac.size());
-  return 0;
+Object::Object(TYPE type, std::string str) : type(type) {
+  name = ASADecode::getPacTypeStr(type) + std::to_string(objs.size());
+  int pos = str.find('\n');
+  format = str.substr(0, pos - 1);
+  detail = str.substr(pos + 1);
+  objs.push_back(new Object(*this));
 }
 
-uint8_t HMI_get_array(TimeoutSerial& serial, std::string& str) {
-  ASADecode decode;
-  // std::string buf = serial.readStringUntil();
-  // // ...
-  // int o='\n';
-  do {
-    auto c = HMI_getc(serial);
-    decode.put(c);
-  } while (!decode.isDone);
-
-  // for (auto i = buf.begin(); i < buf.end(); i++) {
-  //   decode.put(*i);
-  // }
-  // if (!decode.isDone) return 1;
-  str = decode.get();
-  return 0;
+Object::~Object() {
+  auto find = std::find(objs.begin(), objs.end(), this);
+  if (find != objs.end()) objs.erase(find);
+}
+std::string Object::getAllVisible() {
+  std::string str;
+  for (auto obj : objs) {
+    // if (obj->type == TYPE::FILE) continue;
+    str += obj->getVisible() + "\n";
+  }
+  return str;
 }
 
-uint8_t HMI_snget_array(TimeoutSerial& serial, std::string& str) {
-  ASADecode decode;
-  char c;
-  do {
-    // try {
-      c = HMI_getc(serial);
-    // } catch (const std::exception& e) {
-    //   return 1;
-    // }
-
-    if (!decode.put(c)) {
-      if (decode.isSync(c)) serial.writeString("~ACK\n");
-    }
-  } while (!decode.isDone);
-
-  // for (auto i = buf.begin(); i < buf.end(); i++) {
-  //   decode.put(*i);
-  // }
-  // if (!decode.isDone) return 1;
-  str = decode.get();
-  return 0;
+Object *Object::getObj(int index) {
+  if (index < objs.size())
+    return objs[index];
+  else
+    return nullptr;
 }
+
+void Object::setCol(int col) { Object::col = col; }
+
+std::string Object::getVisible() {
+  std::string str =
+      std::format("{0:^4}|{1:^{3}}|{2:^{3}}\n", ASADecode::getPacTypeStr(type),
+                  name, format, col / 2 - 4);
+  return str;
+}
+std::string Object::getName() const { return name; }
+std::string Object::getFormat() const { return format; }
+std::string Object::getDetail() const { return detail; }
+void Object::renName(std::string newName) { name = newName; }
+void Object::renDetail(std::string newDetail) { detail = newDetail; }
