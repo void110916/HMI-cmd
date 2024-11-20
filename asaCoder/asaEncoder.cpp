@@ -27,7 +27,7 @@ string ASABasic::getFormat() {
   return str;
 }
 
-string ASABasic::detailStr(){
+string ASABasic::detailStr() {
   string text = "";
   if (pkg_type == PAC_type::AR) {
     text = getFormat() + " :\n    {{ " +
@@ -104,21 +104,22 @@ string ASABasic::detailStr(){
 
 int ASABasic::getType() { return pkg_type; }
 
-
 // ASADecode
-ASADecode::ASADecode() {}
+bool ASADecode::sync = false;
+ASADecode::ASADecode() { sync = false; }
 
 ASADecode::~ASADecode() {}
 
 bool ASADecode::isSync(char buff) {
   static string cmd;
   static bool inSync = false;
-  static regex re(R"(^~G[AMS])");
+  static regex re(R"(^~G[AMSF])");
   if (buff == '~') inSync = true;
   if (inSync) cmd += buff;
   if (inSync && buff == '\n') {
     if (regex_search(cmd, re)) {
       inSync = false;
+      sync = true;
       cmd.clear();
       return true;
     }
@@ -128,7 +129,7 @@ bool ASADecode::isSync(char buff) {
 }
 
 bool ASADecode::put(uint8_t buff) {
-  static uint16_t dlen=0;
+  static uint16_t dlen = 0;
   if (isProcessing) {
     switch (decodeState) {
       case STATE::HEADER:
@@ -162,6 +163,8 @@ bool ASADecode::put(uint8_t buff) {
           decodeState = STATE::mt_type;
         else if (buff == 3)
           decodeState = STATE::st_fs_len;
+        else if (buff == 4)
+          decodeState = STATE::file;
         break;
       case STATE::ar_type:
         chksum += buff;
@@ -193,7 +196,6 @@ bool ASADecode::put(uint8_t buff) {
           decodeState++;
         }
         break;
-
       case STATE::mt_type:
         chksum += buff;
         mt_type = buff;
@@ -229,7 +231,6 @@ bool ASADecode::put(uint8_t buff) {
           decodeState++;
         }
         break;
-
       case STATE::st_fs_len:
         chksum += buff;
         dlen = buff;
@@ -264,19 +265,36 @@ bool ASADecode::put(uint8_t buff) {
           decodeState++;
         }
         break;
+      case STATE::file:
+        chksum += buff;
+        if (++count == paclen - 2) {
+          count = 0;
+          decodeState++;
+        }
+        if (!fdec.put(buff)) {
+          retry = true;
+          return false;
+        }
+        break;
       case STATE::chksum:
         decodeState++;
         isProcessing = false;
-        if ((chksum & UINT8_MAX) == buff)
-          isDone = true;
-        else
-          return false;
+        if ((chksum & UINT8_MAX) == buff) {
+          retry = false;
+          if (pkg_type == F) {
+            isFile = true;
+            if (fdec.save()) isDone = true;
+          } else
+            isDone = true;
+        } else {
+          retry = true;
+        }
         break;
     }
   } else {
     if (buff == 0xac) {
       clear();
-      dlen=0;
+      dlen = 0;
       isProcessing = true;
       count++;
     } else
@@ -307,59 +325,61 @@ string ASADecode::get() {
     auto type = std::istringstream(text);
     text = regex_replace(text, regex(","), " , ") + " :\n{\n";
     string d;
+    auto&& it = make_move_iterator(st_dat.begin());
     while (std::getline(type, d, ',')) {
       array<string, 2> info;
       auto&& at = d.find("_");
       info[0] = d.substr(0, at);
       info[1] = d.substr(at + 1);
       vector<uint8_t> dat;
-      auto&& it = make_move_iterator(st_dat.begin());
+
       string st;
+      HMI_type HMItype;
+      size_t len;
       if (info[0] == "ui8"s) {
-        dat.insert(dat.begin(), it,
-                   it + std::stoi(info[1]) * sizeof(std::uint8_t));
-        st = dataTransfirm(HMI_type::UI8, dat);
+        len = std::stoi(info[1]) * sizeof(uint8_t);
+        HMItype = HMI_type::UI8;
       } else if (info[0] == "ui16"s) {
-        dat.insert(dat.begin(), it,
-                   it + std::stoi(info[1]) * sizeof(std::uint16_t));
-        st = dataTransfirm(HMI_type::UI16, dat);
+        len = std::stoi(info[1]) * sizeof(uint16_t);
+        HMItype = HMI_type::UI16;
       } else if (info[0] == "ui32"s) {
-        dat.insert(dat.begin(), it,
-                   it + std::stoi(info[1]) * sizeof(std::uint32_t));
-        st = dataTransfirm(HMI_type::UI32, dat);
+        len = std::stoi(info[1]) * sizeof(uint32_t);
+        HMItype = HMI_type::UI32;
       } else if (info[0] == "ui64"s) {
-        dat.insert(dat.begin(), it,
-                   it + std::stoi(info[1]) * sizeof(std::uint64_t));
-        st = dataTransfirm(HMI_type::UI64, dat);
+        len = std::stoi(info[1]) * sizeof(uint64_t);
+        HMItype = HMI_type::UI64;
       } else if (info[0] == "i8"s) {
-        dat.insert(dat.begin(), it,
-                   it + std::stoi(info[1]) * sizeof(std::int8_t));
-        st = dataTransfirm(HMI_type::I8, dat);
+        len = std::stoi(info[1]) * sizeof(int8_t);
+        HMItype = HMI_type::I8;
       } else if (info[0] == "i16"s) {
-        dat.insert(dat.begin(), it,
-                   it + std::stoi(info[1]) * sizeof(std::int16_t));
-        st = dataTransfirm(HMI_type::I16, dat);
+        len = std::stoi(info[1]) * sizeof(int16_t);
+        HMItype = HMI_type::I16;
       } else if (info[0] == "i32"s) {
-        dat.insert(dat.begin(), it,
-                   it + std::stoi(info[1]) * sizeof(std::int32_t));
-        st = dataTransfirm(HMI_type::I32, dat);
+        len = std::stoi(info[1]) * sizeof(int32_t);
+        HMItype = HMI_type::I32;
       } else if (info[0] == "i64"s) {
-        dat.insert(dat.begin(), it,
-                   it + std::stoi(info[1]) * sizeof(std::int64_t));
-        st = dataTransfirm(HMI_type::I64, dat);
+        len = std::stoi(info[1]) * sizeof(int64_t);
+        HMItype = HMI_type::I64;
       } else if (info[0] == "f32"s) {
-        dat.insert(dat.begin(), it, it + std::stoi(info[1]) * sizeof(float));
-        st = dataTransfirm(HMI_type::F32, dat);
+        len = std::stoi(info[1]) * sizeof(float);
+        HMItype = HMI_type::F32;
       } else if (info[0] == "f64"s) {
-        dat.insert(dat.begin(), it, it + std::stoi(info[1]) * sizeof(double));
-        st = dataTransfirm(HMI_type::F64, dat);
+        len = std::stoi(info[1]) * sizeof(double);
+        HMItype = HMI_type::F64;
       }
+      dat.insert(dat.begin(), it, it + len);
+      st = dataTransfirm(HMItype, dat);
+      it += len;
       text += "    :{ "s + st + " }\n";
     }
     text += "}\n"s;
+  } else if (pkg_type == PAC_type::F) {
+    
   }
   // clear();
   isDone = false;
+  isFile = false;
+  sync = false;
   return text;
 }
 
@@ -470,7 +490,7 @@ ASAEncode::~ASAEncode() {}
 bool ASAEncode::isSync(char buff) {
   static string cmd;
   static bool inSync = false;
-  static regex re(R"(^~P[AMS])");
+  static regex re(R"(^~P[AMSF])");
   if (buff == '~') inSync = true;
   if (inSync) cmd += buff;
   if (inSync && buff == '\n') {
@@ -600,7 +620,7 @@ vector<uint8_t> ASAEncode::encodeSt2Pac() {
    * chknum (1) (pac_type + fs_len + fs + data_len + data)
    */
   vector<uint8_t> pac(_HEADER.begin(), _HEADER.end());
-  pac.reserve(6 + st_fs.size() + st_dat.size());
+  pac.reserve(10 + st_fs.size() + st_dat.size());
   vector<uint8_t> payload;
   payload.reserve(st_fs.size() + dat.size() + 5);
   payload.push_back(PAC_type::ST);
@@ -618,6 +638,30 @@ vector<uint8_t> ASAEncode::encodeSt2Pac() {
   uint16_t&& paclen = payload.size();
   pac.push_back(paclen >> 8);
   pac.push_back(paclen & UINT8_MAX);
+  pac.insert(pac.end(), make_move_iterator(payload.begin()),
+             make_move_iterator(payload.end()));
+  pac.push_back(sum);
+  return pac;
+}
+
+vector<uint8_t> ASAEncode::encodeF2Pac(bool next) {
+  /**
+   * header (3)
+   * pac_len (2) = 1 + N
+   * pac_type (1)
+   * data (N)
+   * chknum (1) (pac_type + data)
+   */
+  vector<uint8_t> pac(_HEADER.begin(), _HEADER.end());
+  vector<uint8_t> payload = fEnc.get(next);
+  if (payload.empty()) return payload;
+  uint8_t sum = PAC_type::F;
+  for (auto&& it : payload) sum += it;
+  uint16_t&& paclen = payload.size();
+  pac.reserve(7 + paclen);
+  pac.push_back(paclen >> 8);
+  pac.push_back(paclen & UINT8_MAX);
+  pac.push_back(PAC_type::F);
   pac.insert(pac.end(), make_move_iterator(payload.begin()),
              make_move_iterator(payload.end()));
   pac.push_back(sum);
@@ -665,9 +709,9 @@ bool ASAEncode::put(string text) {
   if (pos != string::npos) {
     pkg_type = PAC_type::MT;
     mt_type = getTypeNum(typeStr);
-    char* d=length.substr(pos + 1).data();
-    mt_numy=strtol(length.substr(0,pos).data(),NULL,10);
-    mt_numx=strtol(length.substr(pos + 1).data(),NULL,10);
+    char* d = length.substr(pos + 1).data();
+    mt_numy = strtol(length.substr(0, pos).data(), NULL, 10);
+    mt_numx = strtol(length.substr(pos + 1).data(), NULL, 10);
     // std::sscanf(length.substr(pos + 1).data(), "%d", &mt_numx);
     // std::sscanf(length.substr(0, pos).data(), "%d", &mt_numy);
     uint8_t countY = 0;
@@ -694,21 +738,28 @@ bool ASAEncode::put(string text) {
     } else {
       pkg_type = PAC_type::AR;
       while (std::regex_search(text, matchs, re)) {
-      ar_type = getTypeNum(rstring.substr(ppos + 1, pos));
-      std::sscanf(rstring.substr(rstring.find('_', ppos + 1) + 1, pos).c_str(),
-                  "%d", &ar_num);
-      ppos = pos;
-      auto tmp = transfirm2data((HMI_type)ar_type, matchs[1].str(), ar_num);
-      if (tmp.empty()) {
-        clear();
-        return false;
+        ar_type = getTypeNum(rstring.substr(ppos + 1, pos));
+        std::sscanf(
+            rstring.substr(rstring.find('_', ppos + 1) + 1, pos).c_str(), "%d",
+            &ar_num);
+        ppos = pos;
+        auto tmp = transfirm2data((HMI_type)ar_type, matchs[1].str(), ar_num);
+        if (tmp.empty()) {
+          clear();
+          return false;
+        }
+        dat.insert(dat.end(), tmp.begin(), tmp.end());
+        text = matchs.suffix();
       }
-      dat.insert(dat.end(), tmp.begin(), tmp.end());
-      text = matchs.suffix();
     }
-    }
-    
   }
+  return true;
+}
+
+bool ASAEncode::putFile(string fileName) {
+  if (!fEnc.put(fileName)) return false;
+  isFile = true;
+  pkg_type = PAC_type::F;
   return true;
 }
 
@@ -770,13 +821,15 @@ vector<uint8_t> ASAEncode::transfirm2data(HMI_type type, string data,
   else
     return vector<uint8_t>();
 }
-vector<uint8_t> ASAEncode::get() {
+vector<uint8_t> ASAEncode::get(bool next) {
   if (pkg_type == PAC_type::AR)
     return encodeAr2Pac();
   else if (pkg_type == PAC_type::MT)
     return encodeMt2Pac();
   else if (pkg_type == PAC_type::ST)
     return encodeSt2Pac();
+  else if (pkg_type == PAC_type::F)
+    return encodeF2Pac(next);
   return vector<uint8_t>();
 }
 

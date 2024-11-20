@@ -90,10 +90,10 @@ int main(int argc, char *argv[]) {
   while (1) {
     // read serial =============================
     string s;
-    auto chars = serial.readAsync(256, 5).get();
+    auto chars = serial.readAsync(1000, 5).get();
     if (!chars.empty()) {
+      static ASAEncoder::ASADecode decode;
       for (const char ch : chars) {
-        static ASAEncoder::ASADecode decode;
         if (!decode.put(ch)) {
           if (ch == '\r') continue;
           ltwin.addChar(ch);
@@ -102,21 +102,38 @@ int main(int argc, char *argv[]) {
             serial.writeAsync(str);
             ltwin.addString(str);
           }
+
           ltwin.waitUpdate();
           putSync = ASAEncoder::ASAEncode::isSync(ch);
         }
+        if (decode.sync && decode.isFile && !decode.isProcessing) {
+          string str;
+          if (decode.retry)
+            str = "~R\n";
+          else
+            str = "~N\n";
+          serial.writeAsync(str);
+          ltwin.addString(str);
+          ltwin.waitUpdate();
+        }
         if (decode.isDone) {
-          // add struct object
-          Object o((Object::TYPE)decode.getType(), decode.get());
-          // add struct object to window (first page)
-          if (firstPage) {
-            string str = o.getVisible();
-            rtwin.addString(str);
-            rtwin.waitUpdate();
-            focus->touch();
+          if (decode.isFile) {
+            string str = decode.get();
+            ltwin.addString(">>file save\n");
+            ltwin.waitUpdate();
+          } else {  // add struct object
+            Object o((Object::TYPE)decode.getType(), decode.get());
+            // add struct object to window (first page)
+            if (firstPage) {
+              string str = o.getVisible();
+              rtwin.addString(str);
+              rtwin.waitUpdate();
+              focus->touch();
+            }
           }
         }
       }
+
       // ltwin.touch();
 
       Window::update();
@@ -163,7 +180,7 @@ int main(int argc, char *argv[]) {
               if (focus->getline() != 0) {
                 focus->newLine();
                 break;
-              } else { // 2ed page -> 1st page
+              } else {  // 2ed page -> 1st page
                 str = focus->popString();
                 if (!o->change(str)) {
                   ltwin.addString(">> fail change " + o->getName() + "\n");
@@ -236,7 +253,7 @@ int main(int argc, char *argv[]) {
       Window::update();
     }
 
-    this_thread::sleep_for(chrono::milliseconds(50));
+    this_thread::sleep_for(chrono::milliseconds(30));
   }
 
   // pause the screen output
@@ -250,90 +267,139 @@ int main(int argc, char *argv[]) {
 #include <boost/algorithm/string/split.hpp>
 #include <filesystem>
 #include <fstream>
-int cmd_decode(string str) {
+int cmd_decode(string cmd) {
   map<string, int> CmdArg{{"-m", 1},     {"--mode", 1}, {"-s", 2},
                           {"--save", 2}, {"-l", 3},     {"--load", 3}};
   map<string, int> ModeArg{
-      // {"snparr", 1},
+      {"snparr", 1},
       {"snpmat", 2},
       {"snpstr", 3},
       {"snpfile", 4},
   };
   vector<string> strs;
-  string s;
-  boost::split(strs, str, boost::is_any_of(" "), boost::token_compress_on);
-  // auto res = opt.parse(strs.size(),strs.data());
-  for (auto s = strs.begin(); s != strs.end(); s++) {
-    int a = CmdArg[*s];
-    Object *o;
-    string str;
-    fstream f;
-    switch (a) {
-      case 1:  // mode
-        s++;
-        if (ModeArg[*s] == 4) {  // files
-          // TODO
-        } else {  // array, matrix, struct
-          str = *(s + 1);
-          o = Object::getObj(str);
-          if (o != nullptr && serial.isOpen()) {
-            ASAEncoder::ASAEncode enc;
-            str = o->getFormat() + ":" + o->getDetail();
-            if (enc.put(str)) {
-              auto buf = enc.get();
-              if (putSync) {
-                str = "~ACK\n";
-                serial.writeAsync(str);
-                ltwin.addString(str);
-                putSync = false;
-              }
-              serial.writeAsync(buf.data(), buf.size());
-            }
-          }
-        }
-        break;
-      case 2:  // save
-        str = *++s;
 
-        // vector<string> buffer;
-        f.open("HMI_workspace.txt", ios::out);
-        if (s == strs.end()) {  // save all objs
-          str = Object::getAllVisible();
-          f << str;
-        } else {  // save single
-          do {
-            Object *o = Object::getObj(*s++);
-            if (o) {
-              str = o->getStr();
-              f << str;
-            }
-          } while (s == strs.end());
-        }
-        f.close();
-        break;
-      case 3:  // load
-        // Object o();
-        {
-          str = "HMI_workspace.txt";
-          if (filesystem::exists(str)) {
-            ltwin.addString(">> no HMI_workspace exists!\n");
-            break;
+  boost::split(strs, cmd, boost::is_any_of(" "), boost::token_compress_on);
+  // auto res = opt.parse(strs.size(),strs.data());
+  // for (s = strs.begin(); s != strs.end(); s++) {
+  vector<string>::iterator s = strs.begin();
+  int a = CmdArg[*s];  // TODO: s overflow error
+
+  Object *o;
+  string str;
+  fstream f;
+  ASAEncoder::ASAEncode enc;
+  bool hasThing = true;
+  bool next = false;
+  switch (a) {
+    case 1:  // mode
+      s++;
+      if (ModeArg[*s++] == 4) {  // files
+        if (enc.putFile(*s)) {
+          if (putSync) {
+            str = "~ACK\n";
+            serial.writeAsync(str);
+            ltwin.addString(str);
           }
-          s++;
-          f.open(str, ios::in);
-          do {
-            string name, detail;
-            f >> name >> detail;
-            Object o(name, detail);
-          } while (s != strs.end());
-          break;
+          // auto buf = enc.get(next);
+          // serial.writeAsync(buf.data(), buf.size());  // send header
+          // buf = enc.get(false);
+          // serial.writeAsync(buf.data(), buf.size());  // send first sector
+          while (1) {
+            auto buf = enc.get(next);
+            if (buf.empty()) break;
+            serial.writeAsync(buf.data(), buf.size());
+            if (putSync) {
+              auto chars = serial.readAsync(64, 500).get();
+              for (const char ch : chars) {
+                if (ch == '\r') continue;
+                ltwin.addChar(ch);
+              }
+              ltwin.waitUpdate();
+              Window::update();
+              if (chars[1] == 'R')
+                next = false;
+              else
+                next = true;
+            }
+          }
+          putSync = false;
         }
-      default: {
+      } else {  // array, matrix, struct
+        str = *(s + 1);
+        o = Object::getObj(str);
+        if (o != nullptr && serial.isOpen()) {
+          str = o->getFormat() + ":" + o->getDetail();
+          if (enc.put(str)) {
+            auto buf = enc.get();
+            if (putSync) {
+              str = "~ACK\n";
+              serial.writeAsync(str);
+              ltwin.addString(str);
+              putSync = false;
+            }
+            serial.writeAsync(buf.data(), buf.size());
+          }
+        }
+      }
+      break;
+    case 2:  // save
+      f.open("HMI_workspace.txt", ios::out);
+      if (++s == strs.end()) {  // save all objs
+        int i = 0;
+        for (Object *o = Object::getObj(i); o != nullptr;
+             o = Object::getObj(++i)) {
+          str = o->getStr();
+          f << str;
+        }
+
+      } else {  // save single
+        do {
+          Object *o = Object::getObj(*s++);
+          if (o) {
+            str = o->getStr();
+            f << str;
+          }
+        } while (s != strs.end());
+      }
+      f.close();
+      break;
+    case 3:  // load
+      str = "HMI_workspace.txt";
+      if (!filesystem::exists(str)) {
+        ltwin.addString(">> no HMI_workspace.txt exists!\n");
+        ltwin.waitUpdate();
         break;
       }
+      f.open(str, ios::in);
+      do {
+        string name, format, detail, line;
+        getline(f, name);
+        getline(f, format);
+        if (name.empty()) continue;
+        int count = 0;
+        int p = 0;
+        do {
+          getline(f, line);
+          p = line.find('{');
+          if (p >= 0) count++;
+          p = line.find('}');
+          if (p >= 0) count--;
+          detail += line + "\n";
+        } while (count != 0);
+
+        Object o(name, format + "\n" + detail);
+      } while (!f.eof());
+      str = Object::getAllVisible();
+      rtwin.addString(str);
+      rtwin.waitUpdate();
+      break;
+    default: {
+      break;
     }
   }
-
+  // }
+  rbwin.clear();
+  rbwin.waitUpdate();
   return 0;
 }
 

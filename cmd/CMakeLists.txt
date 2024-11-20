@@ -23,6 +23,7 @@ add_library(object HMI.cpp)
 add_executable(PCDataAgent cmdAgent.cpp window.cpp)
 target_link_libraries(PCDataAgent cxxopts object)
 target_link_libraries(PCDataAgent ncursesw -static)
+target_link_libraries(PCDataAgent -lstdc++fs)
 target_include_directories(PCDataAgent PUBLIC ${CMAKE_SOURCE_DIR}/ncurses/include)
 target_link_directories(PCDataAgent PUBLIC ${CMAKE_SOURCE_DIR}/ncurses/lib)
 
